@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { db } from "@/db";
 import { films, entries } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -122,6 +122,7 @@ export async function saveEntry(input: SaveEntryInput) {
   }
 
   if (publish) {
+    revalidateTag("entries", "max");
     revalidatePath("/");
     revalidatePath(`/entries/${entry.slug}`);
     revalidatePath("/rss.xml");

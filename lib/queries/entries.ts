@@ -55,7 +55,7 @@ export async function getPublishedEntries(
   const allChips =
     entryIds.length > 0
       ? await db
-          .select()
+          .select({ entry_id: entryChips.entry_id, label: entryChips.label, kind: entryChips.kind, is_live: entryChips.is_live })
           .from(entryChips)
           .where(inArray(entryChips.entry_id, entryIds))
       : [];
@@ -112,7 +112,7 @@ export async function getHeroEntry(): Promise<EntryWithFilm | null> {
   if (!rows[0]) return null;
 
   const genreChips = await db
-    .select()
+    .select({ label: entryChips.label, kind: entryChips.kind, is_live: entryChips.is_live })
     .from(entryChips)
     .where(and(eq(entryChips.entry_id, rows[0].id), eq(entryChips.kind, "genre")));
 
@@ -165,7 +165,7 @@ export async function getHeroEntries(): Promise<EntryWithFilm[]> {
   const allChips =
     entryIds.length > 0
       ? await db
-          .select()
+          .select({ entry_id: entryChips.entry_id, label: entryChips.label, kind: entryChips.kind, is_live: entryChips.is_live })
           .from(entryChips)
           .where(inArray(entryChips.entry_id, entryIds))
       : [];
@@ -239,7 +239,7 @@ export async function getEntriesByChip(
   const sliced = hasNext ? rows.slice(0, limit) : rows;
 
   const allChips = await db
-    .select()
+    .select({ entry_id: entryChips.entry_id, label: entryChips.label, kind: entryChips.kind, is_live: entryChips.is_live })
     .from(entryChips)
     .where(inArray(entryChips.entry_id, sliced.map((r) => r.id)));
 
@@ -269,77 +269,12 @@ export async function getEntriesByChip(
   };
 }
 
-export async function getEntriesByGenre(
+export function getEntriesByGenre(
   genreLabel: string,
   limit = 8,
   offset = 0,
 ): Promise<{ items: EntryWithFilm[]; hasNext: boolean }> {
-  const matching = await db
-    .select({ entry_id: entryChips.entry_id })
-    .from(entryChips)
-    .where(and(eq(entryChips.kind, "genre"), eq(entryChips.label, genreLabel)));
-
-  if (matching.length === 0) return { items: [], hasNext: false };
-
-  const ids = matching.map((r) => r.entry_id);
-
-  const rows = await db
-    .select({
-      id: entries.id,
-      slug: entries.slug,
-      title: entries.title,
-      bodyMd: entries.body_md,
-      backdropUrl: entries.backdrop_url,
-      manualBackdropUrl: entries.manual_backdrop_url,
-      publishedAt: entries.published_at,
-      filmTitle: films.title,
-      filmTitleZh: films.title_zh,
-      filmDirector: films.director,
-      filmRuntime: films.runtime_min,
-      filmReleaseYear: films.release_year,
-      filmPosterUrl: films.poster_url,
-    })
-    .from(entries)
-    .leftJoin(films, eq(entries.primary_film_id, films.id))
-    .where(and(eq(entries.is_published, true), inArray(entries.id, ids)))
-    .orderBy(desc(entries.published_at))
-    .limit(limit + 1)
-    .offset(offset);
-
-  if (rows.length === 0) return { items: [], hasNext: false };
-
-  const hasNext = rows.length > limit;
-  const sliced = hasNext ? rows.slice(0, limit) : rows;
-
-  const allChips = await db
-    .select()
-    .from(entryChips)
-    .where(inArray(entryChips.entry_id, sliced.map((r) => r.id)));
-
-  return {
-    items: sliced.map((r) => ({
-      id: r.id,
-      slug: r.slug,
-      title: r.title,
-      backdropUrl: r.manualBackdropUrl ?? r.backdropUrl,
-      publishedAt: r.publishedAt,
-      snippet: toExcerpt(r.bodyMd ?? ""),
-      film: r.filmTitle
-        ? {
-            title: r.filmTitle,
-            titleZh: r.filmTitleZh,
-            director: r.filmDirector,
-            runtimeMin: r.filmRuntime,
-            posterUrl: r.filmPosterUrl,
-            releaseYear: r.filmReleaseYear,
-          }
-        : null,
-      chips: allChips
-        .filter((c) => c.entry_id === r.id)
-        .map((c) => ({ label: c.label, kind: c.kind, isLive: c.is_live })),
-    })),
-    hasNext,
-  };
+  return getEntriesByChip("genre", genreLabel, limit, offset);
 }
 
 export async function getEntriesByDirector(director: string, excludeEntryId: number): Promise<EntryWithFilm[]> {
@@ -569,9 +504,17 @@ export async function getEntryBySlug(slug: string) {
   if (!row[0]) return null;
 
   const chips = await db
-    .select()
+    .select({ label: entryChips.label, kind: entryChips.kind, is_live: entryChips.is_live })
     .from(entryChips)
     .where(eq(entryChips.entry_id, row[0].entries.id));
 
   return { entry: row[0].entries, film: row[0].films, chips };
+}
+
+export async function getPublishedSlugs(): Promise<string[]> {
+  const rows = await db
+    .select({ slug: entries.slug })
+    .from(entries)
+    .where(eq(entries.is_published, true));
+  return rows.map((r) => r.slug);
 }

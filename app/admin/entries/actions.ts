@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { entries } from "@/db/schema";
@@ -41,7 +41,8 @@ export async function publishEntry(entryId: number) {
 
   if (!updated) throw new Error("Entry not found");
 
-  // Immediate ISR invalidation on publish (eng review D3)
+  // Immediate ISR + data cache invalidation on publish
+  revalidateTag("entries", "max");
   revalidatePath("/");
   revalidatePath(`/entries/${updated.slug}`);
   revalidatePath("/rss.xml");
@@ -58,6 +59,7 @@ export async function unpublishEntry(entryId: number) {
 
   if (!updated) throw new Error("Entry not found");
 
+  revalidateTag("entries", "max");
   revalidatePath("/");
   revalidatePath(`/entries/${updated.slug}`);
   revalidatePath("/rss.xml");

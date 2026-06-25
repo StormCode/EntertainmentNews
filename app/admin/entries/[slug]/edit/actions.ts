@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { db } from "@/db";
 import { entries, films } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -54,6 +54,7 @@ export async function updateEntry(input: UpdateEntryInput) {
     await recomputeGenreChips(entryId, genreLabels);
   }
 
+  revalidateTag("entries", "max");
   revalidatePath("/");
   revalidatePath(`/entries/${slug}`);
   if (publish || unpublish) revalidatePath("/rss.xml");

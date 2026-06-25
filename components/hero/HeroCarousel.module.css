@@ -37,8 +37,8 @@
 .bg {
   position: absolute;
   inset: 0;
-  background-size: cover;
-  background-position: center;
+  object-fit: cover;
+  object-position: center;
   transition: transform 8s linear;
   will-change: transform;
 }

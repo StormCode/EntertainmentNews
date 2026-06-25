@@ -1,25 +1,47 @@
 export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
+import { unstable_cache } from "next/cache";
 import { Masthead } from "@/components/layout/Masthead";
 import { GenreGrid } from "@/components/genres/GenreGrid";
 import { HeroCarousel } from "@/components/hero/HeroCarousel";
 import { HeroSkeleton, EntryCardSkeleton } from "@/components/skeleton";
-import { getPublishedEntries, getHeroEntries } from "@/lib/queries/entries";
+import { getPublishedEntries, getHeroEntries, type EntryWithFilm } from "@/lib/queries/entries";
 import { EntryGridClient } from "@/components/entries/EntryGridClient";
 import { LazyReveal } from "@/components/ui/LazyReveal";
 import styles from "./page.module.css";
 
 const PAGE_SIZE = 8;
 
+// Cache DB reads across requests — data changes only on publish/unpublish.
+// revalidateTag('entries') in admin actions clears these immediately on change.
+const getCachedHeroEntries = unstable_cache(
+  async () => {
+    const items = await getHeroEntries();
+    return items.map((e) => ({ ...e, publishedAt: e.publishedAt?.toISOString() ?? null }));
+  },
+  ["hero-entries"],
+  { revalidate: 14400, tags: ["entries"] },
+);
+
+const getCachedPublishedEntries = unstable_cache(
+  async (limit: number, offset: number) => {
+    const { items, hasNext } = await getPublishedEntries(limit, offset);
+    return { items: serializeItems(items), hasNext };
+  },
+  ["published-entries"],
+  { revalidate: 14400, tags: ["entries"] },
+);
+
 interface PageProps {
   searchParams: Promise<{ page?: string }>;
 }
 
 async function Hero() {
-  let heroEntries: Awaited<ReturnType<typeof getHeroEntries>> = [];
+  let heroEntries: EntryWithFilm[] = [];
   try {
-    heroEntries = await getHeroEntries();
+    const cached = await getCachedHeroEntries();
+    heroEntries = cached.map((e) => ({ ...e, publishedAt: e.publishedAt ? new Date(e.publishedAt) : null })) as EntryWithFilm[];
   } catch {
     // DB unavailable — show empty carousel without crashing
   }
@@ -36,8 +58,7 @@ export default async function HomePage({ searchParams }: PageProps) {
   };
 
   try {
-    const result = await getPublishedEntries(PAGE_SIZE, (currentPage - 1) * PAGE_SIZE);
-    initialData = { items: serializeItems(result.items), hasNext: result.hasNext };
+    initialData = await getCachedPublishedEntries(PAGE_SIZE, (currentPage - 1) * PAGE_SIZE);
   } catch {
     // DB unavailable at build time or cold start
   }

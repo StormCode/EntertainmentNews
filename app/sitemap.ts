@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { entries } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 86400;
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://etfilmnews.com";
 

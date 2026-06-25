@@ -15,9 +15,15 @@ const GOLD = "#c9a96e";
 const SITE = "散場之後";
 const TMDB_BASE = "https://image.tmdb.org/t/p/w1280";
 
+// Module-level cache survives across requests within the same serverless instance.
+// Key = encoded text; same film titles + wordmark = same glyph subset = cache hit.
+const _fontCache = new Map<string, ArrayBuffer>();
+
 // Fetch a Noto Serif TC subset for the characters we need.
 // Google Fonts returns truetype format when no browser UA is sent.
 async function fetchFont(text: string): Promise<ArrayBuffer | null> {
+  const cached = _fontCache.get(text);
+  if (cached) return cached;
   try {
     const css = await fetch(
       `https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700&text=${encodeURIComponent(text)}`,
@@ -27,7 +33,9 @@ async function fetchFont(text: string): Promise<ArrayBuffer | null> {
     // Match any supported font format (truetype, woff, woff2, opentype)
     const match = css.match(/src: url\(([^)]+)\) format\('[^']+'\)/);
     if (!match) return null;
-    return fetch(match[1], { signal: AbortSignal.timeout(4000) }).then((r) => r.arrayBuffer());
+    const buf = await fetch(match[1], { signal: AbortSignal.timeout(4000) }).then((r) => r.arrayBuffer());
+    _fontCache.set(text, buf);
+    return buf;
   } catch {
     return null;
   }
@@ -79,24 +87,24 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Pre-fetch backdrop as data URL — satori's lazy external image fetch fails in
-  // Vercel serverless (outside our try-catch), so we materialise it ourselves first.
-  let backdropDataUrl: string | null = null;
-  if (backdropUrl) {
-    try {
-      const imgBuf = await fetch(backdropUrl, { signal: AbortSignal.timeout(4000) }).then((r) => r.arrayBuffer());
-      const b64 = Buffer.from(imgBuf).toString("base64");
-      const mime = backdropUrl.endsWith(".png") ? "image/png" : "image/jpeg";
-      backdropDataUrl = `data:${mime};base64,${b64}`;
-    } catch {
-      // Backdrop unavailable — render without image
-    }
-  }
+  // Pre-fetch backdrop + font in parallel — they are independent of each other.
+  // Satori's lazy external image fetch fails in Vercel serverless, so we materialise
+  // the backdrop as a data URL ourselves. Font is cached across requests (module scope).
+  const allText = [SITE, entryTitle, filmLabel, director].filter(Boolean).join("");
 
-  const allText = [SITE, entryTitle, filmLabel, director]
-    .filter(Boolean)
-    .join("");
-  const fontData = await fetchFont(allText);
+  const [backdropDataUrl, fontData] = await Promise.all([
+    backdropUrl
+      ? fetch(backdropUrl, { signal: AbortSignal.timeout(4000) })
+          .then(async (r) => {
+            const imgBuf = await r.arrayBuffer();
+            const b64 = Buffer.from(imgBuf).toString("base64");
+            const mime = backdropUrl!.endsWith(".png") ? "image/png" : "image/jpeg";
+            return `data:${mime};base64,${b64}` as string;
+          })
+          .catch(() => null as string | null)
+      : Promise.resolve(null as string | null),
+    fetchFont(allText),
+  ]);
 
   if (!fontData) {
     // Font fetch failed — redirect to homepage rather than crash with empty fonts

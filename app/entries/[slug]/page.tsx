@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Masthead } from "@/components/layout/Masthead";
 import { Chip } from "@/components/ui/Chip";
-import { getEntryBySlug, getRelatedEntries, getAdjacentEntries } from "@/lib/queries/entries";
+import { getEntryBySlug, getRelatedEntries, getAdjacentEntries, getPublishedSlugs } from "@/lib/queries/entries";
 import Image from "next/image";
 import { renderMarkdown, wordCount } from "@/lib/markdown/render";
 import { LazyReveal } from "@/components/ui/LazyReveal";
@@ -14,6 +14,15 @@ import { BackToTop } from "./BackToTop";
 import styles from "./page.module.css";
 
 export const revalidate = 14400;
+
+export async function generateStaticParams() {
+  try {
+    const slugs = await getPublishedSlugs();
+    return slugs.map((slug) => ({ slug }));
+  } catch {
+    return [];
+  }
+}
 
 interface PageProps {
   params: Promise<{ slug: string }>;

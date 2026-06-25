@@ -64,7 +64,7 @@ export async function getEntriesByDirectorName(directorName: string): Promise<En
   if (rows.length === 0) return [];
 
   const allChips = await db
-    .select()
+    .select({ entry_id: entryChips.entry_id, label: entryChips.label, kind: entryChips.kind, is_live: entryChips.is_live })
     .from(entryChips)
     .where(inArray(entryChips.entry_id, rows.map((r) => r.id)));
 

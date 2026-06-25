@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Chip } from "@/components/ui/Chip";
 import type { EntryWithFilm } from "@/lib/queries/entries";
 import styles from "./HeroCarousel.module.css";
@@ -63,9 +64,13 @@ export function HeroCarousel({ entries }: Props) {
             aria-label={`閱讀：${entry.title}`}
             aria-roledescription="slide"
           >
-            <div
+            <Image
+              src={backdrop}
+              alt=""
+              fill
+              priority={i === 0}
+              sizes="100vw"
               className={styles.bg}
-              style={{ backgroundImage: `url('${backdrop}')` }}
             />
             <div className={styles.overlay} />
 
