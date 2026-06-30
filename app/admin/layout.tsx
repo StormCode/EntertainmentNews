@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ minHeight: "100vh", background: "var(--paper)" }}>
+    <div data-admin style={{ minHeight: "100vh", background: "var(--paper)" }}>
       <nav className={styles.adminNav}>
         <Link href="/admin/entries" className={styles.navBrand}>散場之後</Link>
         <div className={styles.navLinks}>

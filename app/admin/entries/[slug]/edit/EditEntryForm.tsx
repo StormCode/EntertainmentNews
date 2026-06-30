@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { updateEntry, retryR2Upload, updateFilmPoster } from "./actions";
 import { GENRES, type GenreLabel } from "@/lib/constants/genres";
 import { PosterPickerModal } from "@/components/admin/PosterPickerModal";
+import { PreviewPanel } from "@/components/admin/PreviewPanel";
 import styles from "./edit.module.css";
 
 interface EntryChip {
@@ -55,6 +56,7 @@ export function EditEntryForm({ entry, film, chips: initialChips }: Props) {
     () => initialChips.filter((c) => c.kind === "genre").map((c) => c.label as GenreLabel)
   );
   const [heroFeatured, setHeroFeatured] = useState(entry.is_hero_featured);
+  const [view, setView] = useState<"write" | "preview">("write");
   const [message, setMessage] = useState("");
   const [isPending, startTransition] = useTransition();
   const [r2Pending, startR2] = useTransition();
@@ -131,26 +133,6 @@ export function EditEntryForm({ entry, film, chips: initialChips }: Props) {
         router.push(`/entries/${entry.slug}`);
       } catch {
         setMessage("發布失敗，請再試");
-      }
-    });
-  }
-
-  function handleUnpublish() {
-    startTransition(async () => {
-      try {
-        await updateEntry({
-          entryId: entry.id,
-          slug: entry.slug,
-          entryTitle,
-          bodyMd,
-          imageCredit,
-          genreLabels: selectedGenres,
-          heroFeatured,
-          unpublish: true,
-        });
-        setMessage("已取消發布");
-      } catch {
-        setMessage("取消發布失敗，請再試");
       }
     });
   }
@@ -299,66 +281,70 @@ export function EditEntryForm({ entry, film, chips: initialChips }: Props) {
         </div>
       </aside>
 
-      {/* Center editor */}
-      <main className={styles.editor} aria-label="文章編輯器">
-        {message && <div className={styles.inlineMessage}>{message}</div>}
-        <input
-          type="text"
-          value={entryTitle}
-          onChange={(e) => setEntryTitle(e.target.value)}
-          placeholder="文章標題"
-          className={styles.titleInput}
-          aria-label="文章標題"
-        />
-        <textarea
-          value={bodyMd}
-          onChange={(e) => setBodyMd(e.target.value)}
-          placeholder="開始寫作……"
-          className={styles.bodyTextarea}
-          aria-label="文章內文（Markdown）"
-        />
-        <div className={styles.actionBar}>
-          {entry.is_published ? (
+      {/* Center — write or preview view */}
+      {view === "write" ? (
+        <main className={styles.editor} aria-label="文章編輯器">
+          {message && <div className={styles.inlineMessage}>{message}</div>}
+          <input
+            type="text"
+            value={entryTitle}
+            onChange={(e) => setEntryTitle(e.target.value)}
+            placeholder="文章標題"
+            className={styles.titleInput}
+            aria-label="文章標題"
+          />
+          <textarea
+            value={bodyMd}
+            onChange={(e) => setBodyMd(e.target.value)}
+            placeholder="開始寫作……"
+            className={styles.bodyTextarea}
+            aria-label="文章內文（Markdown）"
+          />
+          <div className={styles.actionBar}>
             <button
-              className={styles.btnUnpublish}
+              className={styles.btnSave}
               type="button"
-              onClick={handleUnpublish}
-              disabled={isPending}
+              onClick={handleSave}
+              disabled={isPending || !entryTitle}
             >
-              取消發布
+              {isPending ? "儲存中…" : "儲存"}
             </button>
-          ) : (
             <button
-              className={styles.btnPublish}
+              className={styles.btnPreview}
               type="button"
-              onClick={handlePublish}
-              disabled={isPending || !entryTitle || !bodyMd}
+              onClick={() => setView("preview")}
             >
-              發布
+              預覽 →
             </button>
-          )}
-          <button
-            className={styles.btnSave}
-            type="button"
-            onClick={handleSave}
-            disabled={isPending || !entryTitle}
-          >
-            {isPending ? "儲存中…" : "儲存"}
-          </button>
+          </div>
+        </main>
+      ) : (
+        <div className={styles.previewOuter} aria-label="文章預覽">
+          {message && <div className={styles.inlineMessage}>{message}</div>}
+          <PreviewPanel title={entryTitle} bodyMd={bodyMd} />
+          <div className={styles.actionBarPreview}>
+            <button
+              className={styles.btnBack}
+              type="button"
+              onClick={() => setView("write")}
+            >
+              ← 返回編輯
+            </button>
+            {entry.is_published ? (
+              <span className={styles.publishedLabel}>已發布 ✓</span>
+            ) : (
+              <button
+                className={styles.btnPublish}
+                type="button"
+                onClick={handlePublish}
+                disabled={isPending || !entryTitle || !bodyMd}
+              >
+                {isPending ? "發布中…" : "發布"}
+              </button>
+            )}
+          </div>
         </div>
-      </main>
-
-      {/* Right preview */}
-      <aside className={styles.rightPanel} aria-label="預覽">
-        <div className={styles.panelHeading}>預覽</div>
-        <div className={styles.previewContent}>
-          {bodyMd ? (
-            <pre className={styles.previewPre}>{bodyMd}</pre>
-          ) : (
-            <p className={styles.previewEmpty}>開始輸入後顯示預覽</p>
-          )}
-        </div>
-      </aside>
+      )}
 
       {posterPickerOpen && film?.tmdb_id && (
         <PosterPickerModal

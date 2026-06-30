@@ -1,9 +1,9 @@
-/* Ghost/Notion style: 3-panel admin layout (design review D3 + D7) */
+/* 2-view tab toggle (write / preview) */
 
 .shell {
   display: grid;
-  grid-template-columns: 260px 1fr 300px;
-  min-height: 100vh;
+  grid-template-columns: 260px 1fr;
+  min-height: calc(100vh - 48px);
 }
 
 /* Left context panel */
@@ -89,7 +89,7 @@
   background: var(--editor-bg);
   display: flex;
   flex-direction: column;
-  padding: 40px 48px;
+  padding: 40px 48px 80px;
   gap: 0;
 }
 
@@ -112,7 +112,7 @@
 
 .bodyTextarea {
   flex: 1;
-  min-height: 600px;
+  min-height: 400px;
   width: 100%;
   background: transparent;
   border: none;
@@ -129,12 +129,17 @@
 
 /* Action bar */
 .actionBar {
+  position: fixed;
+  bottom: 0;
+  left: 260px;
+  right: 0;
   display: flex;
   gap: 12px;
   justify-content: flex-end;
-  padding-top: 20px;
+  padding: 16px 48px;
   border-top: 1px solid #d0cbc3;
-  margin-top: 24px;
+  background: var(--editor-bg);
+  z-index: 10;
 }
 
 .btnDraft {
@@ -232,12 +237,120 @@
   margin-top: 4px;
 }
 
-/* Tablet: collapse to single column */
+/* Preview view */
+.previewOuter {
+  background: var(--paper);
+  padding: 40px 48px 80px;
+}
+
+.previewLabel {
+  font-family: var(--font-sans-tc), "Noto Sans TC", sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin: 0 0 12px;
+}
+
+.previewDivider {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 0 0 32px;
+}
+
+.previewTitle {
+  font-family: var(--font-serif-tc), "Noto Serif TC", serif;
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--ink-strong);
+  line-height: 1.4;
+  margin: 0 0 24px;
+}
+
+.previewBody {
+  color: var(--ink);
+  font-family: var(--font-serif-tc), "Noto Serif TC", serif;
+  font-size: 18px;
+  line-height: 1.9;
+  letter-spacing: 0.04em;
+  max-width: 720px;
+}
+
+.previewBody h2 { font-size: 24px; font-weight: 900; color: var(--ink-strong); line-height: 1.4; margin: 48px 0 16px; }
+.previewBody h3 { font-size: 20px; font-weight: 900; color: var(--ink-strong); line-height: 1.4; margin: 32px 0 12px; }
+.previewBody p { margin: 0 0 24px; }
+.previewBody em { font-style: italic; }
+.previewBody strong { font-weight: 900; color: var(--ink-strong); }
+.previewBody blockquote { border-left: 3px solid var(--gold); padding: 4px 0 4px 20px; margin: 0 0 24px; color: var(--muted); font-style: italic; }
+.previewBody ul, .previewBody ol { padding-left: 24px; margin: 0 0 24px; }
+.previewBody li { margin-bottom: 8px; }
+.previewBody hr { border: none; border-top: 1px solid var(--line); margin: 40px 0; }
+.previewBody code { font-family: "Courier New", Courier, monospace; font-size: 14px; background: var(--paper-2); padding: 2px 6px; border-radius: 2px; color: var(--gold); }
+.previewBody pre { background: var(--paper-2); padding: 16px 20px; border-radius: 4px; overflow-x: auto; margin: 0 0 24px; }
+.previewBody pre code { background: none; padding: 0; border-radius: 0; }
+.previewBody a { color: var(--gold); text-decoration: underline; }
+
+.previewBodyEmpty {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 14px;
+}
+
+.actionBarPreview {
+  position: fixed;
+  bottom: 0;
+  left: 260px;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 48px;
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+  z-index: 10;
+}
+
+.btnPreview {
+  padding: 10px 24px;
+  background: var(--gold);
+  border: none;
+  border-radius: 4px;
+  color: var(--paper);
+  font-family: var(--font-sans-tc), sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btnPreview:hover { opacity: 0.9; }
+
+.btnBack {
+  padding: 10px 20px;
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  color: var(--muted);
+  font-family: var(--font-sans-tc), sans-serif;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.btnBack:hover { border-color: var(--ink); color: var(--ink); }
+
+/* Tablet */
 @media (max-width: 899px) {
   .shell {
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr auto;
   }
-  .rightPanel { display: none; } /* hide preview on tablet */
   .leftPanel { border-right: none; border-bottom: 1px solid var(--line); }
+  .actionBar { left: 0; }
+  .actionBarPreview { left: 0; }
+}
+
+/* Mobile */
+@media (max-width: 599px) {
+  .actionBar { padding: 16px 20px; }
+  .actionBarPreview { padding: 16px 20px; }
 }

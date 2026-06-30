@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { entries, films } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import styles from "./page.module.css";
+import { unpublishEntry } from "./actions";
 
 export const metadata = { title: "文章列表" };
 
@@ -92,6 +93,16 @@ export default async function AdminEntriesPage() {
               <Link href={`/entries/${row.slug}`} className={styles.btnView} target="_blank">
                 查看
               </Link>
+              {row.is_published && (
+                <form
+                  action={async () => {
+                    "use server";
+                    await unpublishEntry(row.id);
+                  }}
+                >
+                  <button type="submit" className={styles.btnUnpublish}>取消發布</button>
+                </form>
+              )}
             </div>
           </li>
         ))}

@@ -6,6 +6,7 @@ import { Toast } from "@/components/ui/Toast";
 import { fetchFilmData, saveEntry } from "./actions";
 import { GENRES, type GenreLabel } from "@/lib/constants/genres";
 import { PosterPickerModal } from "@/components/admin/PosterPickerModal";
+import { PreviewPanel } from "@/components/admin/PreviewPanel";
 import styles from "./page.module.css";
 
 interface FilmPreview {
@@ -28,6 +29,7 @@ export function NewEntryForm() {
   const [imageCredit, setImageCredit] = useState("");
   const [selectedGenres, setSelectedGenres] = useState<GenreLabel[]>([]);
   const [publishedSlug, setPublishedSlug] = useState<string | null>(null);
+  const [view, setView] = useState<"write" | "preview">("write");
   const [isPending, startTransition] = useTransition();
   const [selectedPosterPath, setSelectedPosterPath] = useState<string | null>(null);
   const [posterPickerOpen, setPosterPickerOpen] = useState(false);
@@ -157,54 +159,64 @@ export function NewEntryForm() {
         </div>
       </aside>
 
-      {/* Center editor */}
-      <main className={styles.editor} aria-label="文章編輯器">
-        <input
-          type="text"
-          value={entryTitle}
-          onChange={(e) => setEntryTitle(e.target.value)}
-          placeholder="文章標題"
-          className={styles.titleInput}
-          aria-label="文章標題"
-        />
-        <textarea
-          value={bodyMd}
-          onChange={(e) => setBodyMd(e.target.value)}
-          placeholder="開始寫作……"
-          className={styles.bodyTextarea}
-          aria-label="文章內文（Markdown）"
-        />
-        <div className={styles.actionBar}>
-          <button
-            className={styles.btnDraft}
-            type="button"
-            onClick={handleSaveDraft}
-            disabled={isPending || !entryTitle}
-          >
-            {isPending ? "儲存中…" : "儲存草稿"}
-          </button>
-          <button
-            className={styles.btnPublish}
-            type="button"
-            onClick={handlePublish}
-            disabled={isPending || !entryTitle || !bodyMd}
-          >
-            發布
-          </button>
+      {/* Center — write or preview view */}
+      {view === "write" ? (
+        <main className={styles.editor} aria-label="文章編輯器">
+          <input
+            type="text"
+            value={entryTitle}
+            onChange={(e) => setEntryTitle(e.target.value)}
+            placeholder="文章標題"
+            className={styles.titleInput}
+            aria-label="文章標題"
+          />
+          <textarea
+            value={bodyMd}
+            onChange={(e) => setBodyMd(e.target.value)}
+            placeholder="開始寫作……"
+            className={styles.bodyTextarea}
+            aria-label="文章內文（Markdown）"
+          />
+          <div className={styles.actionBar}>
+            <button
+              className={styles.btnDraft}
+              type="button"
+              onClick={handleSaveDraft}
+              disabled={isPending || !entryTitle}
+            >
+              {isPending ? "儲存中…" : "儲存草稿"}
+            </button>
+            <button
+              className={styles.btnPreview}
+              type="button"
+              onClick={() => setView("preview")}
+            >
+              預覽 →
+            </button>
+          </div>
+        </main>
+      ) : (
+        <div className={styles.previewOuter} aria-label="文章預覽">
+          <PreviewPanel title={entryTitle} bodyMd={bodyMd} />
+          <div className={styles.actionBarPreview}>
+            <button
+              className={styles.btnBack}
+              type="button"
+              onClick={() => setView("write")}
+            >
+              ← 返回編輯
+            </button>
+            <button
+              className={styles.btnPublish}
+              type="button"
+              onClick={handlePublish}
+              disabled={isPending || !entryTitle || !bodyMd}
+            >
+              {isPending ? "發布中…" : "發布"}
+            </button>
+          </div>
         </div>
-      </main>
-
-      {/* Right preview */}
-      <aside className={styles.rightPanel} aria-label="預覽">
-        <div className={styles.panelHeading}>預覽</div>
-        <div className={styles.previewContent}>
-          {bodyMd ? (
-            <pre className={styles.previewPre}>{bodyMd}</pre>
-          ) : (
-            <p className={styles.previewEmpty}>開始輸入後顯示預覽</p>
-          )}
-        </div>
-      </aside>
+      )}
 
       {/* Publish toast — shown after redirect returns (slug set via server) */}
       {publishedSlug && (

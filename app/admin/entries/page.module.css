@@ -158,6 +158,7 @@
   font-family: var(--font-sans-tc), sans-serif;
 }
 
+.btnEdit:visited { color: var(--ink); }
 .btnEdit:hover { border-color: var(--gold); color: var(--gold); }
 
 .btnView {
@@ -171,4 +172,18 @@
   font-family: var(--font-sans-tc), sans-serif;
 }
 
-.btnView:hover { color: var(--ink); }
+.btnView:visited { color: var(--muted); }
+.btnView:hover { border-color: var(--ink); color: var(--ink); }
+
+.btnUnpublish {
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: var(--font-sans-tc), sans-serif;
+  cursor: pointer;
+}
+
+.btnUnpublish:hover { border-color: var(--ink); color: var(--ink); }

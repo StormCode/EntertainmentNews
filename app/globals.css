@@ -115,3 +115,6 @@ time, [data-tabular] {
 @media (prefers-reduced-motion: reduce) {
   .skeleton { animation: none; }
 }
+
+/* Admin pages — hide public footer */
+body:has([data-admin]) footer { display: none; }
