@@ -16,11 +16,11 @@ Deferred from plan reviews. Each item has enough context to be picked up cold.
 **Target:** v0.1
 
 ### TODO-E5: 測試基礎設施（vitest）
-**What:** 引入 vitest，為 `lib/markdown/render.ts` 中的 `wordCount()` 寫第一個 unit test suite。
-**Why:** wordCount() 是純函數，有明確輸入/輸出規格（CJK 字符各計 1、英文以單詞計、clamp min 1 分鐘）；eng review 發現 regex 有 bug，正是因為沒有測試。未來 render.ts 改動有回歸保護。
-**Pros:** 為測試文化建立基礎；wordCount() 是理想的起點（零副作用、邊界清晰）。
-**Cons:** 需設定 vitest config；Next.js app router 的 server component 測試較複雜，此 TODO 只針對純函數。
-**Context:** `lib/markdown/render.ts` 的 `wordCount()` 函數。測試案例：純中文句子（各字計 1）、純英文（單詞計）、混合（兩者加總）、空字串（min 1 分鐘）。
+**What:** 引入 vitest，為純函數寫第一批 unit tests。目前範圍：`wordCount()`（lib/markdown/render.ts）+ TMDB poster picker server logic（`fetchTmdbPosters`、`updateFilmPoster`）。
+**Why:** wordCount() regex 曾有 bug（CJK 計算錯誤）；fetchTmdbPosters / updateFilmPoster 是純 server function，有明確輸入輸出規格，測試後可防止 cache revalidation 等 regression。
+**Pros:** 建立測試文化基礎；兩個起點（wordCount + poster actions）都是零副作用純函數，設定成本最低。
+**Cons:** 需設定 vitest config；Next.js app router server component 測試較複雜，此 TODO 只針對純函數與 server actions（mock DB）。
+**Context:** 起點一：`lib/markdown/render.ts:wordCount()`；起點二：`lib/tmdb.ts:fetchTmdbPosters()`（mock fetch，測 sort/slice 邏輯）、`app/admin/entries/[slug]/edit/actions.ts:updateFilmPoster()`（mock db + uploadFilmImages，測 fallback 邏輯與 revalidate call）。
 **Target:** v0.1
 
 ---

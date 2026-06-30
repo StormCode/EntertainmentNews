@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { TmdbPoster } from "@/lib/tmdb";
+import { fetchFilmPosters } from "@/components/admin/poster-actions";
 import styles from "./PosterPickerModal.module.css";
 
 const TMDB_W185 = "https://image.tmdb.org/t/p/w185";
@@ -10,10 +11,9 @@ interface Props {
   tmdbId: number;
   onSelect: (posterPath: string) => void;
   onClose: () => void;
-  disabled?: boolean;
 }
 
-export function PosterPickerModal({ tmdbId, onSelect, onClose, disabled }: Props) {
+export function PosterPickerModal({ tmdbId, onSelect, onClose }: Props) {
   const [posters, setPosters] = useState<TmdbPoster[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -24,10 +24,8 @@ export function PosterPickerModal({ tmdbId, onSelect, onClose, disabled }: Props
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/admin/tmdb-posters?tmdbId=${tmdbId}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setPosters(data.posters ?? []);
+      const result = await fetchFilmPosters(tmdbId);
+      setPosters(result);
     } catch {
       setError("無法載入海報，請重試");
     } finally {
@@ -42,18 +40,17 @@ export function PosterPickerModal({ tmdbId, onSelect, onClose, disabled }: Props
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape" && !disabled) onClose();
+      if (e.key === "Escape") onClose();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [disabled, onClose]);
+  }, [onClose]);
 
   function handleOverlayClick(e: React.MouseEvent) {
-    if (e.target === overlayRef.current && !disabled) onClose();
+    if (e.target === overlayRef.current) onClose();
   }
 
   function handleSelect(path: string) {
-    if (disabled) return;
     setSelected(path);
     onSelect(path);
   }
@@ -63,7 +60,7 @@ export function PosterPickerModal({ tmdbId, onSelect, onClose, disabled }: Props
       <div className={styles.panel}>
         <div className={styles.header}>
           <span className={styles.title}>選擇海報</span>
-          <button className={styles.closeBtn} onClick={onClose} disabled={disabled} aria-label="關閉">✕</button>
+          <button className={styles.closeBtn} onClick={onClose} aria-label="關閉">✕</button>
         </div>
 
         {error && (
@@ -88,7 +85,6 @@ export function PosterPickerModal({ tmdbId, onSelect, onClose, disabled }: Props
                 key={p.file_path}
                 className={`${styles.posterBtn} ${selected === p.file_path ? styles.posterBtnSelected : ""}`}
                 onClick={() => handleSelect(p.file_path)}
-                disabled={disabled}
                 type="button"
                 title={p.iso_639_1 ? `語言：${p.iso_639_1}` : "無文字版"}
               >

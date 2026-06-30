@@ -70,6 +70,9 @@ export function EditEntryForm({ entry, film, chips: initialChips }: Props) {
 
   const heroUrl = entry.backdrop_url ?? film?.backdrop_url;
   const r2Missing = !heroUrl || heroUrl.startsWith("/");
+  // Poster is still on TMDB CDN when R2 upload failed (poster picker fallback or initial save failure)
+  const r2PosterMissing = !!posterUrl && posterUrl.includes("image.tmdb.org");
+  const r2AnyMissing = r2Missing || r2PosterMissing;
 
   async function handlePosterSelect(posterPath: string) {
     if (!film) return;
@@ -159,6 +162,7 @@ export function EditEntryForm({ entry, film, chips: initialChips }: Props) {
       if ("error" in result) {
         setMessage(`R2 上傳失敗：${result.error}`);
       } else {
+        if (result.posterUrl) setPosterUrl(result.posterUrl);
         setMessage("圖片已上傳至 R2");
       }
     });
@@ -198,7 +202,7 @@ export function EditEntryForm({ entry, film, chips: initialChips }: Props) {
           <p className={styles.hint}>無關聯影片</p>
         )}
 
-        {r2Missing && film && (
+        {r2AnyMissing && film && (
           <div className={styles.r2Warning}>
             <p className={styles.warningText}>圖片待補 — R2 尚未上傳</p>
             <button
@@ -361,7 +365,6 @@ export function EditEntryForm({ entry, film, chips: initialChips }: Props) {
           tmdbId={film.tmdb_id}
           onSelect={handlePosterSelect}
           onClose={() => setPosterPickerOpen(false)}
-          disabled={posterUploading}
         />
       )}
     </div>

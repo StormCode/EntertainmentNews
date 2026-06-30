@@ -80,7 +80,7 @@ export async function updateFilmPoster(
     posterTmdbPath: tmdbPosterPath,
   });
 
-  // R2 may not be configured — fall back to TMDB URL so the poster still updates
+  // R2 may not be configured — fall back to TMDB URL so the poster still displays publicly
   const posterUrl = r2Url ?? `https://image.tmdb.org/t/p/w500${tmdbPosterPath}`;
 
   await db
@@ -88,10 +88,23 @@ export async function updateFilmPoster(
     .set({ poster_url: posterUrl })
     .where(eq(films.id, filmId));
 
+  revalidateTag("entries", "max");
+  revalidatePath("/");
+
   return { posterUrl };
 }
 
-export async function retryR2Upload(filmId: number) {
+// Extract raw TMDB path from either "/xxx.jpg" or a full TMDB CDN URL
+function tmdbPathFrom(url: string | null): string | null {
+  if (!url) return null;
+  if (url.startsWith("/")) return url;
+  const m = url.match(/image\.tmdb\.org\/t\/p\/[^/]+(\/.+)/);
+  return m ? m[1] : null;
+}
+
+export async function retryR2Upload(filmId: number): Promise<
+  { ok: true; posterUrl: string | null; heroUrl: string | null } | { error: string }
+> {
   const [film] = await db
     .select({ tmdb_id: films.tmdb_id, backdrop_url: films.backdrop_url, poster_url: films.poster_url })
     .from(films)
@@ -100,9 +113,9 @@ export async function retryR2Upload(filmId: number) {
 
   if (!film?.tmdb_id) return { error: "找不到影片" };
 
-  // backdrop_url/poster_url at this point may be raw TMDB paths (not yet R2)
-  const backdropPath = film.backdrop_url?.startsWith("/") ? film.backdrop_url : null;
-  const posterPath = film.poster_url?.startsWith("/") ? film.poster_url : null;
+  // Handles both legacy raw paths ("/xxx.jpg") and TMDB CDN URLs (poster picker fallback)
+  const backdropPath = tmdbPathFrom(film.backdrop_url);
+  const posterPath = tmdbPathFrom(film.poster_url);
 
   if (!backdropPath && !posterPath) return { error: "已無待處理的 TMDB 圖片路徑" };
 
@@ -122,5 +135,8 @@ export async function retryR2Upload(filmId: number) {
     })
     .where(eq(films.id, filmId));
 
-  return { ok: true };
+  revalidateTag("entries", "max");
+  revalidatePath("/");
+
+  return { ok: true, posterUrl: posterUrl ?? null, heroUrl: heroUrl ?? null };
 }
