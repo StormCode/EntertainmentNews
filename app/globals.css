@@ -4,6 +4,8 @@
  */
 
 :root {
+  --admin-nav-h: 48px;
+
   /* Surfaces */
   --paper:         #0c0a08;
   --paper-2:       #161310;

@@ -3,7 +3,7 @@
 .shell {
   display: grid;
   grid-template-columns: 260px 1fr;
-  min-height: calc(100vh - 48px);
+  min-height: calc(100vh - var(--admin-nav-h));
 }
 
 /* Left panel */
