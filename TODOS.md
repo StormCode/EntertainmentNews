@@ -4,6 +4,37 @@ Deferred from plan reviews. Each item has enough context to be picked up cold.
 
 ---
 
+## Engineering Review TODOs (from /plan-eng-review 2026-09-15)
+
+### TODO-E6: NewDot 的 hydration 閃爍（與字級同一類）
+**What:** `components/entries/NewDot.tsx:12-27` 在 `useEffect` 裡讀 localStorage/sessionStorage 判斷文章是否為「新」，導致「新」徽章在首次繪製後才彈出。改用與字級相同的 pre-paint inline script 或 lazy `useState` 初始化。
+**Why:** 與 T6 修掉的字級閃爍是完全相同的失效模式：伺服器不知道 localStorage，SSR 先畫一次，hydration 後才修正。徽章在文章卡右上角彈出會造成視覺跳動。
+**Pros:** 修法已經在 T6 建立好（`InlineScript` 元件 + lazy initializer 模式），套用成本低；讀者不再看到徽章閃現。
+**Cons:** 徽章是每張卡片一個，inline script 需處理 N 個元素或改成 `<html>` 層級的資料屬性 + CSS 比較，設計上比單一字級複雜。
+**Context:** 目前邏輯：`sessionStorage.prevVisit` 為快取，未命中時讀 `localStorage.lastVisit` 並立刻寫入 `Date.now()`。注意這個「讀完馬上覆寫」的副作用在改成 pre-paint 時要保持語意不變。相關檔案：`components/entries/NewDot.tsx`、`components/entries/EntryCard.module.css`（`.newBadge`）。
+**Depends on:** T6（字級 inline script）完成後，模式可直接複用。
+**Target:** v0.1
+
+### TODO-E7: 三處 smooth scroll 無視 prefers-reduced-motion
+**What:** `app/entries/[slug]/BackToTop.tsx:22` 與 `app/entries/[slug]/TableOfContents.tsx:72` 使用 `behavior: "smooth"` 但沒有檢查使用者的減少動態偏好。改成讀 `window.matchMedia("(prefers-reduced-motion: reduce)")` 後決定 `smooth` 或 `instant`。
+**Why:** `app/globals.css:117-119` 的 reduced-motion 區塊只關掉 `.skeleton` 動畫。CSS media query 管不到 JS 的 `scrollIntoView`/`scrollTo`，所以對動態敏感的使用者（前庭功能障礙、偏頭痛）仍會被平滑捲動影響。
+**Pros:** 兩個檔案各兩行，成本極低；補上一個真實的無障礙缺口。
+**Cons:** 需要在每個呼叫點重複檢查，或抽一個 `lib/scroll.ts` 小工具（後者較 DRY）。
+**Context:** 本次工程審查發現共 5 處 `behavior:"smooth"`，其中 3 處（三個 GridClient）已由 T4 刪除，T3 新增的 `ScrollToGrid` 已內建這個檢查。剩下這兩處在本次改動範圍外。建議抽 `lib/scroll.ts` 匯出 `smoothScrollTo()` / `smoothScrollIntoView()`，三個呼叫點共用。
+**Depends on:** 無（T3 完成後可參考其實作）。
+**Target:** v0.1
+
+### TODO-E8: `?page=` 超出範圍時顯示「暫無文章」（文案錯誤）
+**What:** `app/page.tsx:81` 等四個列表頁在 `items.length === 0` 時一律顯示「暫無文章。」。當讀者開啟 `/?page=999`（或收藏的舊分頁連結、文章數變少後）會看到同樣的字，誤以為整個網站空了。應區分「這個分類真的沒文章」與「這一頁超出範圍」，後者顯示「這一頁沒有內容」並附回第 1 頁的連結。
+**Why:** 靜默失效：頁面回 200、沒有錯誤、監控抓不到，但讀者看到的是一個看起來壞掉的網站。搜尋引擎也可能索引到空頁面。
+**Pros:** 純文案與一個條件判斷，風險接近零；同時可考慮 `currentPage > 1 && items.length === 0` 時回 `notFound()`，讓 SEO 拿到正確的 404。
+**Cons:** 要決定是「友善空頁 + 回首頁連結」還是「直接 404」。404 對 SEO 較正確但對誤點的讀者較不友善。
+**Context:** 現存 bug，非 2026-09-15 那次重構引入。四個列表頁都有相同邏輯（`app/page.tsx`、`app/genres/[slug]/page.tsx`、`app/festivals/[slug]/page.tsx`、`app/directors/page.tsx`）。T2 的 `EntryGrid` 抽取會經過這段程式碼，屆時可一併處理，屬於低成本順手修。
+**Depends on:** 建議在 T2 之後做，因為空狀態邏輯會搬進 `EntryGrid`。
+**Target:** v0.1
+
+---
+
 ## Engineering Review TODOs (from /plan-eng-review 2026-06-19)
 
 ### TODO-E4: H2/H3 hover 複製錨點連結
