@@ -129,49 +129,40 @@ time, [data-tabular] {
   to   { transform: translateY(0);   opacity: 1; }
 }
 
-/* 列表翻頁的淡出淡入（Next.js view transitions，next.config.ts 的 experimental.viewTransition）
+/* 翻頁載入中：舊內容原地淡化，等新資料就位才換。
  *
- * 舊內容淡出與新內容淡入同時進行，是真正的 crossfade 而不是「消失再出現」。
- * 沒有延遲，中間不會有一瞬間的空白。
- * group 的 duration 讓不同筆數造成的高度變化跟著一起補間，而不是硬切。
+ * 屬性由 components/ui/PaginationPending.tsx 寫在 <html> 上（useLinkStatus
+ * 只在 <Link> 子孫裡有效，而 grid 不是它的子孫，所以借 <html> 當通道）。
+ *
+ * 為什麼不用 view transition（2026-09-15 試過後撤掉）：第 1 頁 8 篇、第 2 頁
+ * 2 篇的高度差會讓探索類型先被頂上去再被壓下來；整頁的 root crossfade 又會把
+ * 舊版面的殘影疊在新版面上，兩者相加看起來像來回搖。原地淡化只讓版面在最後
+ * 換的那一瞬變動一次。
  */
-::view-transition-group(list-grid) {
-  animation-duration: 340ms;
-  animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
+/* 新內容淡入 —— 每次翻頁都會發生，不依賴任何載入狀態。
+ *
+ * 這層是必要的：useLinkStatus 只在導覽「被阻塞」時才回報 pending，而拉回
+ * 伺服器之後 RSC 回應約 20ms，pending 幾乎不會 commit。重構前那個半透明
+ * 之所以看得見，正是因為它多打了一次沒快取的 API —— 慢，所以看得到。
+ * 純 CSS 動畫跟速度無關，一定會播。 */
+[data-paging-dim] {
+  /* fill-mode 用 backwards 而不是 both：both 會把結束值 opacity:1 永久釘住，
+   * 優先序高過下面的 [data-paginating] 規則，慢速連線時的淡化就永遠不會生效。
+   * backwards 只填充動畫開始前，結束後把 opacity 交還給正常的 cascade。 */
+  animation: paging-in 240ms cubic-bezier(0.22, 0.61, 0.36, 1) backwards;
+  transition: opacity 180ms ease;
 }
 
-::view-transition-old(list-grid) {
-  animation: vt-grid-out 260ms cubic-bezier(0.4, 0, 1, 1) both;
+@keyframes paging-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
-::view-transition-new(list-grid) {
-  animation: vt-grid-in 340ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
-}
-
-@keyframes vt-grid-out {
-  from { opacity: 1; }
-  to   { opacity: 0; }
-}
-
-@keyframes vt-grid-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* 探索類型是配角：位移跟著補間，淡入延後到文章之後才開始。
- * 不同頁的文章筆數不同會讓頁面高度驟縮，沒有這段的話探索類型會直接
- * 被頂上來，比新文章更早進入視野。 */
-::view-transition-group(genre-discovery) {
-  animation-duration: 420ms;
-  animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
-}
-
-::view-transition-old(genre-discovery) {
-  animation: vt-grid-out 200ms cubic-bezier(0.4, 0, 1, 1) both;
-}
-
-::view-transition-new(genre-discovery) {
-  animation: vt-grid-in 300ms cubic-bezier(0.22, 0.61, 0.36, 1) 220ms both;
+/* 慢速連線時，舊內容在等新資料的期間原地淡化。快的時候這段不會觸發，
+ * 讀者只會看到上面那個淡入。 */
+:root[data-paginating] [data-paging-dim] {
+  opacity: 0.45;
+  pointer-events: none;
 }
 
 /* Reduced motion */
@@ -179,14 +170,8 @@ time, [data-tabular] {
   .skeleton { animation: none; }
 
   /* 翻頁直接切換，不做 crossfade */
-  ::view-transition-group(list-grid),
-  ::view-transition-old(list-grid),
-  ::view-transition-new(list-grid),
-  ::view-transition-group(genre-discovery),
-  ::view-transition-old(genre-discovery),
-  ::view-transition-new(genre-discovery) {
-    animation: none;
-  }
+  /* 翻頁不做淡入淡出，直接切換 */
+  [data-paging-dim] { animation: none; transition: none; }
 }
 
 /* Admin pages — hide public footer */

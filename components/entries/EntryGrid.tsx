@@ -52,7 +52,9 @@ export async function EntryGrid({
 
   return (
     <>
-      <div className={gridClassName}>
+      {/* key={page} 讓每次翻頁重新掛載這個 div，CSS 的淡入動畫才會重播。
+          不加 key 的話 React 會沿用同一個節點，動畫只在第一次跑。 */}
+      <div key={page} className={gridClassName} data-paging-dim>
         {items.map((entry) => (
           <EntryCard key={entry.id} entry={entry} />
         ))}

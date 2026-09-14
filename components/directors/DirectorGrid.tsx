@@ -24,7 +24,7 @@ export async function DirectorGrid({ page, data, empty }: Props) {
 
   return (
     <>
-      <ul className={styles.grid} role="list">
+      <ul key={page} className={styles.grid} role="list" data-paging-dim>
         {items.map((d) => (
           <li key={d.slug}>
             <Link href={`/directors/${d.slug}`} className={styles.card}>

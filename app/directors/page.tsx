@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Suspense, ViewTransition } from "react";
+import { Suspense } from "react";
 import { Masthead } from "@/components/layout/Masthead";
 import { DirectorGrid } from "@/components/directors/DirectorGrid";
 import { ScrollToGrid } from "@/components/ui/ScrollToGrid";
@@ -47,23 +47,11 @@ export default async function DirectorsPage({ searchParams }: PageProps) {
         <GridAnchor />
 
         <Suspense fallback={<DirectorGridSkeleton className={styles.grid} />}>
-          {/* key 放在 ViewTransition 而不是 Suspense（Next.js view-transitions
-              guide 的 Step 4「同路由 crossfade」）：Suspense 不重新掛載，翻頁時
-              舊內容會留在畫面上直到新內容備妥，再由 view transition 淡出淡入。
-              骨架只在真正的冷載入（沒有舊內容可留）時出現。 */}
-          <ViewTransition
-            key={currentPage}
-            name="list-grid"
-            share="auto"
-            enter="auto"
-            default="none"
-          >
-            <DirectorGrid
-              page={currentPage}
-              data={directors}
-              empty={<p className={styles.empty}>尚無導演資料。</p>}
-            />
-          </ViewTransition>
+          <DirectorGrid
+            page={currentPage}
+            data={directors}
+            empty={<p className={styles.empty}>尚無導演資料。</p>}
+          />
         </Suspense>
       </main>
     </>

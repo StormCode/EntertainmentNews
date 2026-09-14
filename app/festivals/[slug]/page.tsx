@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Suspense, ViewTransition } from "react";
+import { Suspense } from "react";
 import { Masthead } from "@/components/layout/Masthead";
 import { FESTIVALS, FESTIVAL_SLUG_TO_LABEL } from "@/lib/constants/festivals";
 import { getEntriesByChip } from "@/lib/queries/entries";
@@ -61,25 +61,13 @@ export default async function FestivalPage({ params, searchParams }: PageProps) 
 
         <LazyReveal>
           <Suspense fallback={<EntryGridSkeleton className={styles.grid} />}>
-            {/* key 放在 ViewTransition 而不是 Suspense（Next.js view-transitions
-              guide 的 Step 4「同路由 crossfade」）：Suspense 不重新掛載，翻頁時
-              舊內容會留在畫面上直到新內容備妥，再由 view transition 淡出淡入。
-              骨架只在真正的冷載入（沒有舊內容可留）時出現。 */}
-            <ViewTransition
-              key={currentPage}
-              name="list-grid"
-              share="auto"
-              enter="auto"
-              default="none"
-            >
-              <EntryGrid
-                page={currentPage}
-                data={entries}
-                gridClassName={styles.grid}
-                basePath={`/festivals/${slug}`}
-                empty={<p className={styles.empty}>此影展尚無文章。</p>}
-              />
-            </ViewTransition>
+            <EntryGrid
+              page={currentPage}
+              data={entries}
+              gridClassName={styles.grid}
+              basePath={`/festivals/${slug}`}
+              empty={<p className={styles.empty}>此影展尚無文章。</p>}
+            />
           </Suspense>
         </LazyReveal>
       </main>

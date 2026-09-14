@@ -143,44 +143,92 @@ test.describe("其他列表頁", () => {
 
 test.describe("翻頁的視覺轉場", () => {
   /**
-   * 2026-09-15：原本 key 放在 <Suspense> 上，翻頁會硬切成骨架再硬切成新內容，
-   * 使用者回報「跳太快」。改成 key 放在 <ViewTransition> 上（Next.js
-   * view-transitions guide Step 4 的同路由 crossfade），舊內容留到新內容備妥
-   * 再淡出淡入，骨架只在冷載入時出現。
+   * 2026-09-15 的兩輪修正：
+   *
+   *  v1  key 在 <Suspense> 上 → 翻頁硬切成骨架再硬切成新內容，使用者回報「跳太快」
+   *  v2  改用 view transition  → 第 1 頁 8 篇、第 2 頁 2 篇的高度差讓探索類型
+   *                             先被頂上去再被壓下來，加上整頁 root crossfade
+   *                             的殘影，變成來回搖
+   *  v3  回到重構前的作法：舊內容原地淡化等新資料，就位才換。版面只在最後
+   *      那一瞬變動一次。
    */
 
-  test("翻頁會觸發 view transition 而不是硬切", async ({ page }) => {
+  test("每次翻頁新內容都會淡入，不依賴載入速度", async ({ page }) => {
+    // useLinkStatus 只在導覽被阻塞時回報 pending，本機 RSC 回應約 20ms，
+    // 幾乎不會 commit。所以淡入必須是純 CSS 動畫，跟速度無關才一定會播。
+    //
+    // 用 animationstart 事件計數而不是 getAnimations()：後者只回傳還在跑的
+    // 動畫，240ms 的淡入在斷言執行前早就結束了。
     await page.addInitScript(() => {
-      const w = window as unknown as { __vtCount: number };
-      w.__vtCount = 0;
-      // lib.dom 已有正式型別，用它而不是 unknown 硬蓋
-      const original = document.startViewTransition?.bind(document);
-      if (!original) return; // 瀏覽器不支援就跳過，不讓測試假綠
-      document.startViewTransition = ((
-        callback?: Parameters<typeof original>[0],
-      ) => {
-        w.__vtCount += 1;
-        return original(callback);
-      }) as typeof document.startViewTransition;
+      const w = window as unknown as { __pagingIn: number };
+      w.__pagingIn = 0;
+      document.addEventListener(
+        "animationstart",
+        (e) => {
+          if ((e as AnimationEvent).animationName === "paging-in") {
+            w.__pagingIn += 1;
+          }
+        },
+        true,
+      );
     });
 
-    await page.goto("/");
+    const count = () =>
+      page.evaluate(() => (window as unknown as { __pagingIn: number }).__pagingIn);
 
-    const supported = await page.evaluate(
-      () => typeof document.startViewTransition === "function",
-    );
-    test.skip(!supported, "此瀏覽器不支援 View Transitions API");
+    await page.goto("/");
+    await expect(page.locator(ENTRY_LINKS).first()).toBeVisible();
+    await expect.poll(count, { timeout: 5000 }).toBe(1);
 
     await page.getByRole("link", { name: "下一頁" }).click();
     await expect(page).toHaveURL(/page=2/);
+    await expect(page.locator(ENTRY_LINKS).first()).toBeVisible();
+
+    // grid 的 key={page} 讓它重新掛載，動畫才會重播。
+    // 少了 key 的話 React 沿用同一個節點，計數會停在 1。
+    await expect
+      .poll(count, { timeout: 5000, message: "翻頁後淡入應該重播" })
+      .toBe(2);
+  });
+
+  test("翻頁載入中，舊內容原地淡化且不可點擊", async ({ page }) => {
+    await page.goto("/");
+    const grid = page.locator("[data-paging-dim]").first();
+    await expect(grid).toBeVisible();
+
+    // 直接驅動屬性而不是賽跑等 useLinkStatus —— 本機導覽可能只有幾毫秒，
+    // 等它會 flaky。這裡要釘住的是「屬性 → CSS」這條線有接好。
+    await expect(grid).toHaveCSS("opacity", "1");
+
+    await page.evaluate(() => {
+      document.documentElement.dataset.paginating = "true";
+    });
+    await expect(grid).toHaveCSS("opacity", "0.45");
+    await expect(grid).toHaveCSS("pointer-events", "none");
+
+    await page.evaluate(() => {
+      delete document.documentElement.dataset.paginating;
+    });
+    await expect(grid).toHaveCSS("opacity", "1");
+  });
+
+  test("翻頁完成後淡化狀態會解除，不會卡在半透明", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("link", { name: "下一頁" }).click();
+    await expect(page).toHaveURL(/page=2/);
+    await expect(page.locator(ENTRY_LINKS).first()).toBeVisible();
 
     await expect
-      .poll(
-        () => page.evaluate(() => (window as unknown as { __vtCount: number }).__vtCount),
-        { timeout: 5000 },
+      .poll(() =>
+        page.evaluate(() => document.documentElement.dataset.paginating ?? null),
       )
-      .toBeGreaterThan(0);
+      .toBe(null);
+    await expect(page.locator("[data-paging-dim]").first()).toHaveCSS(
+      "opacity",
+      "1",
+    );
   });
+
 
   test("翻頁過程中不再閃過骨架卡", async ({ page }) => {
     await page.addInitScript(() => {
@@ -225,56 +273,6 @@ test.describe("內容出現順序", () => {
    * 跟「文章是主角、類型探索是配角」的閱讀順序相反。
    * 修法是讓它等文章的 promise 就緒（components/ui/AfterReady.tsx）。
    */
-  /**
-   * React 的 <ViewTransition> 只在轉場發生的當下把 view-transition-name 掛到
-   * 元素上，結束後移除（避免同名衝突），所以靜態 computed style 量不到。
-   * 這裡攔截 startViewTransition，在它被呼叫的當下掃一遍文件，看哪些名稱在場。
-   */
-  async function namesDuringTransition(page: Page): Promise<string[]> {
-    await page.addInitScript(() => {
-      const w = window as unknown as { __vtNames: string[] };
-      w.__vtNames = [];
-      const original = document.startViewTransition?.bind(document);
-      if (!original) return;
-      document.startViewTransition = ((
-        callback?: Parameters<typeof original>[0],
-      ) => {
-        for (const el of Array.from(document.querySelectorAll("*"))) {
-          const name = getComputedStyle(el).viewTransitionName;
-          if (name && name !== "none" && !w.__vtNames.includes(name)) {
-            w.__vtNames.push(name);
-          }
-        }
-        return original(callback);
-      }) as typeof document.startViewTransition;
-    });
-
-    await page.goto("/");
-    const supported = await page.evaluate(
-      () => typeof document.startViewTransition === "function",
-    );
-    test.skip(!supported, "此瀏覽器不支援 View Transitions API");
-
-    await page.getByRole("link", { name: "下一頁" }).click();
-    await expect(page).toHaveURL(/page=2/);
-    await expect(page.locator(ENTRY_LINKS).first()).toBeVisible();
-
-    return page.evaluate(
-      () => (window as unknown as { __vtNames: string[] }).__vtNames,
-    );
-  }
-
-  test("文章與探索類型都參與翻頁轉場，位移會補間而不是硬跳", async ({ page }) => {
-    // 不同頁的文章筆數不同 → 頁面高度驟縮。兩者都有轉場名稱，探索類型的位移
-    // 才會補間，而不是被直接頂上來比新文章更早進入視野。
-    const names = await namesDuringTransition(page);
-
-    expect(names, `轉場當下在場的名稱：${names.join(", ") || "(無)"}`).toContain(
-      "list-grid",
-    );
-    expect(names).toContain("genre-discovery");
-  });
-
   test("翻頁時探索類型不會消失再出現", async ({ page }) => {
     await page.goto("/");
     const genres = page.locator('[aria-label="探索電影類型"]');

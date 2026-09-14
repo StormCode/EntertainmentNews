@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { Suspense, ViewTransition } from "react";
+import { Suspense } from "react";
 import { unstable_cache } from "next/cache";
 import { Masthead } from "@/components/layout/Masthead";
 import { GenreGrid } from "@/components/genres/GenreGrid";
@@ -88,50 +88,29 @@ export default async function HomePage({ searchParams }: PageProps) {
 
         <LazyReveal>
           <Suspense fallback={<EntryGridSkeleton className={styles.entryGrid} />}>
-            {/* key 放在 ViewTransition 而不是 Suspense（Next.js view-transitions
-              guide 的 Step 4「同路由 crossfade」）：Suspense 不重新掛載，翻頁時
-              舊內容會留在畫面上直到新內容備妥，再由 view transition 淡出淡入。
-              骨架只在真正的冷載入（沒有舊內容可留）時出現。 */}
-            <ViewTransition
-              key={currentPage}
-              name="list-grid"
-              share="auto"
-              enter="auto"
-              default="none"
-            >
-              <EntryGrid
-                page={currentPage}
-                data={entries}
-                gridClassName={styles.entryGrid}
-                basePath="/"
-                empty={<p className={styles.emptyState}>暫無文章。</p>}
-              />
-            </ViewTransition>
+            <EntryGrid
+              page={currentPage}
+              data={entries}
+              gridClassName={styles.entryGrid}
+              basePath="/"
+              empty={<p className={styles.emptyState}>暫無文章。</p>}
+            />
           </Suspense>
         </LazyReveal>
       </main>
 
-      {/* Genre discovery — bottom of page。文章是主角，探索類型是配角，
-          兩層機制保證它排在文章之後：
+      {/* Genre discovery — bottom of page。文章是主角，探索類型是配角。
+          AfterReady 閘門讓它等文章的 promise 就緒才渲染：GenreGrid 是同步
+          元件，沒有閘門的話它會落在第一次 flush，讀者在文章還是骨架時就先
+          看到它。快取命中時看不出差別，冷快取（真的要打 DB）時才發揮作用。
 
-          1. AfterReady 閘門（冷載入）：GenreGrid 是同步元件，沒有閘門的話
-             它會落在第一次 flush，讀者在文章還是骨架時就先看到它。
-          2. ViewTransition（翻頁）：頁與頁的筆數不同會讓頁面高度驟縮，
-             探索類型被頂上來、比新文章更早進入視野。給它自己的轉場名稱後，
-             位移會補間，而且 enter 有延遲，排在文章淡入之後。 */}
+          翻頁時的位移交給 PaginationPending 的半透明作法處理：舊內容原地
+          淡化等新資料，就位才換，版面只在最後那一瞬變動一次。 */}
       <Suspense fallback={null}>
         <AfterReady gate={entries}>
-          <ViewTransition
-            key={currentPage}
-            name="genre-discovery"
-            share="auto"
-            enter="auto"
-            default="none"
-          >
-            <LazyReveal>
-              <GenreGrid />
-            </LazyReveal>
-          </ViewTransition>
+          <LazyReveal>
+            <GenreGrid />
+          </LazyReveal>
         </AfterReady>
       </Suspense>
     </>
