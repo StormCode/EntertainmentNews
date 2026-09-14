@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 /**
  * 翻頁流程（2026-09-15 工程審查 D3 / D4）。
@@ -213,5 +213,89 @@ test.describe("翻頁的視覺轉場", () => {
       ),
       "翻頁時舊內容應該留在畫面上，不該退回骨架",
     ).toBe(false);
+  });
+});
+
+test.describe("內容出現順序", () => {
+  /**
+   * 2026-09-15 使用者回饋：文章內容要優先出來，之後才顯示探索類型。
+   *
+   * GenreGrid 是同步的 server component（只讀 lib/constants/genres.ts），
+   * 不放閘門的話它會落在第一次 flush 裡，讀者在文章還是骨架時就先看到它 ——
+   * 跟「文章是主角、類型探索是配角」的閱讀順序相反。
+   * 修法是讓它等文章的 promise 就緒（components/ui/AfterReady.tsx）。
+   */
+  /**
+   * React 的 <ViewTransition> 只在轉場發生的當下把 view-transition-name 掛到
+   * 元素上，結束後移除（避免同名衝突），所以靜態 computed style 量不到。
+   * 這裡攔截 startViewTransition，在它被呼叫的當下掃一遍文件，看哪些名稱在場。
+   */
+  async function namesDuringTransition(page: Page): Promise<string[]> {
+    await page.addInitScript(() => {
+      const w = window as unknown as { __vtNames: string[] };
+      w.__vtNames = [];
+      const original = document.startViewTransition?.bind(document);
+      if (!original) return;
+      document.startViewTransition = ((
+        callback?: Parameters<typeof original>[0],
+      ) => {
+        for (const el of Array.from(document.querySelectorAll("*"))) {
+          const name = getComputedStyle(el).viewTransitionName;
+          if (name && name !== "none" && !w.__vtNames.includes(name)) {
+            w.__vtNames.push(name);
+          }
+        }
+        return original(callback);
+      }) as typeof document.startViewTransition;
+    });
+
+    await page.goto("/");
+    const supported = await page.evaluate(
+      () => typeof document.startViewTransition === "function",
+    );
+    test.skip(!supported, "此瀏覽器不支援 View Transitions API");
+
+    await page.getByRole("link", { name: "下一頁" }).click();
+    await expect(page).toHaveURL(/page=2/);
+    await expect(page.locator(ENTRY_LINKS).first()).toBeVisible();
+
+    return page.evaluate(
+      () => (window as unknown as { __vtNames: string[] }).__vtNames,
+    );
+  }
+
+  test("文章與探索類型都參與翻頁轉場，位移會補間而不是硬跳", async ({ page }) => {
+    // 不同頁的文章筆數不同 → 頁面高度驟縮。兩者都有轉場名稱，探索類型的位移
+    // 才會補間，而不是被直接頂上來比新文章更早進入視野。
+    const names = await namesDuringTransition(page);
+
+    expect(names, `轉場當下在場的名稱：${names.join(", ") || "(無)"}`).toContain(
+      "list-grid",
+    );
+    expect(names).toContain("genre-discovery");
+  });
+
+  test("翻頁時探索類型不會消失再出現", async ({ page }) => {
+    await page.goto("/");
+    const genres = page.locator('[aria-label="探索電影類型"]');
+    await expect(genres).toBeAttached();
+
+    await page.addInitScript(() => {});
+    let detached = false;
+    const poll = setInterval(async () => {
+      try {
+        if ((await genres.count()) === 0) detached = true;
+      } catch {
+        /* 導覽中的暫時性錯誤忽略 */
+      }
+    }, 50);
+
+    await page.getByRole("link", { name: "下一頁" }).click();
+    await expect(page).toHaveURL(/page=2/);
+    await expect(page.locator(ENTRY_LINKS).first()).toBeVisible();
+    clearInterval(poll);
+
+    expect(detached, "翻頁時探索類型應該留在畫面上，不該閃掉").toBe(false);
+    await expect(genres).toBeAttached();
   });
 });

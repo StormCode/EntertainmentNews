@@ -9,7 +9,7 @@ import { ScrollToGrid } from "@/components/ui/ScrollToGrid";
 import { GridAnchor } from "@/components/ui/GridAnchor";
 import { EntryGridSkeleton } from "@/components/skeleton";
 import { LazyReveal } from "@/components/ui/LazyReveal";
-import { parsePageParam } from "@/lib/pagination";
+import { ENTRY_PAGE_SIZE, offsetFor, parsePageParam } from "@/lib/pagination";
 import { MAIN_CONTENT_ID } from "@/lib/dom-ids";
 import styles from "./page.module.css";
 
@@ -36,6 +36,9 @@ export default async function FestivalPage({ params, searchParams }: PageProps) 
 
   const { page: pageParam } = await searchParams;
   const currentPage = parsePageParam(pageParam);
+
+  // 不 await —— 交給 Suspense 邊界內的 EntryGrid 去解，頁面才不會被阻塞
+  const entries = getEntriesByChip("festival", label, ENTRY_PAGE_SIZE, offsetFor(currentPage, ENTRY_PAGE_SIZE));
 
   return (
     <>
@@ -71,7 +74,7 @@ export default async function FestivalPage({ params, searchParams }: PageProps) 
             >
               <EntryGrid
                 page={currentPage}
-                fetchPage={(limit, offset) => getEntriesByChip("festival", label, limit, offset)}
+                data={entries}
                 gridClassName={styles.grid}
                 basePath={`/festivals/${slug}`}
                 empty={<p className={styles.empty}>此影展尚無文章。</p>}

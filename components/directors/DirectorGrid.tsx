@@ -3,8 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { User } from "lucide-react";
 import { Pagination } from "@/components/ui/Pagination";
-import { DIRECTOR_PAGE_SIZE, offsetFor } from "@/lib/pagination";
-import { getDirectorsPaged } from "@/lib/queries/directors";
+import type { DirectorSummary } from "@/lib/queries/directors";
 import styles from "@/app/directors/page.module.css";
 
 /**
@@ -14,14 +13,12 @@ import styles from "@/app/directors/page.module.css";
  */
 interface Props {
   page: number;
+  data: Promise<{ items: DirectorSummary[]; hasNext: boolean }>;
   empty: ReactNode;
 }
 
-export async function DirectorGrid({ page, empty }: Props) {
-  const { items, hasNext } = await getDirectorsPaged(
-    DIRECTOR_PAGE_SIZE,
-    offsetFor(page, DIRECTOR_PAGE_SIZE),
-  );
+export async function DirectorGrid({ page, data, empty }: Props) {
+  const { items, hasNext } = await data;
 
   if (items.length === 0) return <>{empty}</>;
 

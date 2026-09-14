@@ -10,8 +10,9 @@ import { getPublishedEntries, getHeroEntries, type EntryWithFilm } from "@/lib/q
 import { EntryGrid } from "@/components/entries/EntryGrid";
 import { ScrollToGrid } from "@/components/ui/ScrollToGrid";
 import { GridAnchor } from "@/components/ui/GridAnchor";
+import { AfterReady } from "@/components/ui/AfterReady";
 import { LazyReveal } from "@/components/ui/LazyReveal";
-import { parsePageParam } from "@/lib/pagination";
+import { ENTRY_PAGE_SIZE, offsetFor, parsePageParam } from "@/lib/pagination";
 import { MAIN_CONTENT_ID } from "@/lib/dom-ids";
 import styles from "./page.module.css";
 
@@ -57,6 +58,14 @@ export default async function HomePage({ searchParams }: PageProps) {
   const { page: pageParam } = await searchParams;
   const currentPage = parsePageParam(pageParam);
 
+  // 一個 promise 餵給兩邊：EntryGrid 用它渲染，探索類型用它當「文章已就緒」的
+  // 閘門。共用同一個 promise 才能保證順序 —— 各自打一次查詢只是碰運氣。
+  // 這裡不 await，頁面不會被阻塞。
+  const entries = fetchHomeEntries(
+    ENTRY_PAGE_SIZE,
+    offsetFor(currentPage, ENTRY_PAGE_SIZE),
+  );
+
   return (
     <>
       <Masthead />
@@ -92,7 +101,7 @@ export default async function HomePage({ searchParams }: PageProps) {
             >
               <EntryGrid
                 page={currentPage}
-                fetchPage={fetchHomeEntries}
+                data={entries}
                 gridClassName={styles.entryGrid}
                 basePath="/"
                 empty={<p className={styles.emptyState}>暫無文章。</p>}
@@ -102,10 +111,29 @@ export default async function HomePage({ searchParams }: PageProps) {
         </LazyReveal>
       </main>
 
-      {/* Genre discovery — bottom of page */}
-      <LazyReveal>
-        <GenreGrid />
-      </LazyReveal>
+      {/* Genre discovery — bottom of page。文章是主角，探索類型是配角，
+          兩層機制保證它排在文章之後：
+
+          1. AfterReady 閘門（冷載入）：GenreGrid 是同步元件，沒有閘門的話
+             它會落在第一次 flush，讀者在文章還是骨架時就先看到它。
+          2. ViewTransition（翻頁）：頁與頁的筆數不同會讓頁面高度驟縮，
+             探索類型被頂上來、比新文章更早進入視野。給它自己的轉場名稱後，
+             位移會補間，而且 enter 有延遲，排在文章淡入之後。 */}
+      <Suspense fallback={null}>
+        <AfterReady gate={entries}>
+          <ViewTransition
+            key={currentPage}
+            name="genre-discovery"
+            share="auto"
+            enter="auto"
+            default="none"
+          >
+            <LazyReveal>
+              <GenreGrid />
+            </LazyReveal>
+          </ViewTransition>
+        </AfterReady>
+      </Suspense>
     </>
   );
 }

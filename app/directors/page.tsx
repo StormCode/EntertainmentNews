@@ -5,7 +5,8 @@ import { DirectorGrid } from "@/components/directors/DirectorGrid";
 import { ScrollToGrid } from "@/components/ui/ScrollToGrid";
 import { GridAnchor } from "@/components/ui/GridAnchor";
 import { DirectorGridSkeleton } from "@/components/skeleton";
-import { parsePageParam } from "@/lib/pagination";
+import { DIRECTOR_PAGE_SIZE, offsetFor, parsePageParam } from "@/lib/pagination";
+import { getDirectorsPaged } from "@/lib/queries/directors";
 import { MAIN_CONTENT_ID } from "@/lib/dom-ids";
 import styles from "./page.module.css";
 
@@ -20,6 +21,11 @@ interface PageProps {
 export default async function DirectorsPage({ searchParams }: PageProps) {
   const { page: pageParam } = await searchParams;
   const currentPage = parsePageParam(pageParam);
+
+  const directors = getDirectorsPaged(
+    DIRECTOR_PAGE_SIZE,
+    offsetFor(currentPage, DIRECTOR_PAGE_SIZE),
+  );
 
   return (
     <>
@@ -54,6 +60,7 @@ export default async function DirectorsPage({ searchParams }: PageProps) {
           >
             <DirectorGrid
               page={currentPage}
+              data={directors}
               empty={<p className={styles.empty}>尚無導演資料。</p>}
             />
           </ViewTransition>
