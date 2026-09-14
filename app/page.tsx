@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { Suspense } from "react";
+import { Suspense, ViewTransition } from "react";
 import { unstable_cache } from "next/cache";
 import { Masthead } from "@/components/layout/Masthead";
 import { GenreGrid } from "@/components/genres/GenreGrid";
@@ -78,18 +78,26 @@ export default async function HomePage({ searchParams }: PageProps) {
         <GridAnchor />
 
         <LazyReveal>
-          {/* key={currentPage} 讓每次翻頁重新觸發邊界，骨架才會顯示 */}
-          <Suspense
-            key={currentPage}
-            fallback={<EntryGridSkeleton className={styles.entryGrid} />}
-          >
-            <EntryGrid
-              page={currentPage}
-              fetchPage={fetchHomeEntries}
-              gridClassName={styles.entryGrid}
-              basePath="/"
-              empty={<p className={styles.emptyState}>暫無文章。</p>}
-            />
+          <Suspense fallback={<EntryGridSkeleton className={styles.entryGrid} />}>
+            {/* key 放在 ViewTransition 而不是 Suspense（Next.js view-transitions
+              guide 的 Step 4「同路由 crossfade」）：Suspense 不重新掛載，翻頁時
+              舊內容會留在畫面上直到新內容備妥，再由 view transition 淡出淡入。
+              骨架只在真正的冷載入（沒有舊內容可留）時出現。 */}
+            <ViewTransition
+              key={currentPage}
+              name="list-grid"
+              share="auto"
+              enter="auto"
+              default="none"
+            >
+              <EntryGrid
+                page={currentPage}
+                fetchPage={fetchHomeEntries}
+                gridClassName={styles.entryGrid}
+                basePath="/"
+                empty={<p className={styles.emptyState}>暫無文章。</p>}
+              />
+            </ViewTransition>
           </Suspense>
         </LazyReveal>
       </main>

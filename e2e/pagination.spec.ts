@@ -140,3 +140,78 @@ test.describe("其他列表頁", () => {
     expect(apiCalls).toEqual([]);
   });
 });
+
+test.describe("翻頁的視覺轉場", () => {
+  /**
+   * 2026-09-15：原本 key 放在 <Suspense> 上，翻頁會硬切成骨架再硬切成新內容，
+   * 使用者回報「跳太快」。改成 key 放在 <ViewTransition> 上（Next.js
+   * view-transitions guide Step 4 的同路由 crossfade），舊內容留到新內容備妥
+   * 再淡出淡入，骨架只在冷載入時出現。
+   */
+
+  test("翻頁會觸發 view transition 而不是硬切", async ({ page }) => {
+    await page.addInitScript(() => {
+      const w = window as unknown as { __vtCount: number };
+      w.__vtCount = 0;
+      // lib.dom 已有正式型別，用它而不是 unknown 硬蓋
+      const original = document.startViewTransition?.bind(document);
+      if (!original) return; // 瀏覽器不支援就跳過，不讓測試假綠
+      document.startViewTransition = ((
+        callback?: Parameters<typeof original>[0],
+      ) => {
+        w.__vtCount += 1;
+        return original(callback);
+      }) as typeof document.startViewTransition;
+    });
+
+    await page.goto("/");
+
+    const supported = await page.evaluate(
+      () => typeof document.startViewTransition === "function",
+    );
+    test.skip(!supported, "此瀏覽器不支援 View Transitions API");
+
+    await page.getByRole("link", { name: "下一頁" }).click();
+    await expect(page).toHaveURL(/page=2/);
+
+    await expect
+      .poll(
+        () => page.evaluate(() => (window as unknown as { __vtCount: number }).__vtCount),
+        { timeout: 5000 },
+      )
+      .toBeGreaterThan(0);
+  });
+
+  test("翻頁過程中不再閃過骨架卡", async ({ page }) => {
+    await page.addInitScript(() => {
+      const w = window as unknown as { __sawSkeleton: boolean; __watching: boolean };
+      w.__sawSkeleton = false;
+      w.__watching = false;
+      new MutationObserver(() => {
+        if (!w.__watching) return;
+        if (document.querySelector(".skeleton")) w.__sawSkeleton = true;
+      }).observe(document.documentElement, { childList: true, subtree: true });
+    });
+
+    await page.goto("/");
+    await expect(page.locator(ENTRY_LINKS).first()).toBeVisible();
+
+    // 冷載入的骨架不算，從這裡開始才記錄
+    await page.evaluate(() => {
+      const w = window as unknown as { __sawSkeleton: boolean; __watching: boolean };
+      w.__sawSkeleton = false;
+      w.__watching = true;
+    });
+
+    await page.getByRole("link", { name: "下一頁" }).click();
+    await expect(page).toHaveURL(/page=2/);
+    await expect(page.locator(ENTRY_LINKS).first()).toBeVisible();
+
+    expect(
+      await page.evaluate(
+        () => (window as unknown as { __sawSkeleton: boolean }).__sawSkeleton,
+      ),
+      "翻頁時舊內容應該留在畫面上，不該退回骨架",
+    ).toBe(false);
+  });
+});

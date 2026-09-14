@@ -129,9 +129,45 @@ time, [data-tabular] {
   to   { transform: translateY(0);   opacity: 1; }
 }
 
+/* 列表翻頁的淡出淡入（Next.js view transitions，next.config.ts 的 experimental.viewTransition）
+ *
+ * 舊內容淡出與新內容淡入同時進行，是真正的 crossfade 而不是「消失再出現」。
+ * 沒有延遲，中間不會有一瞬間的空白。
+ * group 的 duration 讓不同筆數造成的高度變化跟著一起補間，而不是硬切。
+ */
+::view-transition-group(list-grid) {
+  animation-duration: 340ms;
+  animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+::view-transition-old(list-grid) {
+  animation: vt-grid-out 260ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+::view-transition-new(list-grid) {
+  animation: vt-grid-in 340ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@keyframes vt-grid-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes vt-grid-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .skeleton { animation: none; }
+
+  /* 翻頁直接切換，不做 crossfade */
+  ::view-transition-group(list-grid),
+  ::view-transition-old(list-grid),
+  ::view-transition-new(list-grid) {
+    animation: none;
+  }
 }
 
 /* Admin pages — hide public footer */

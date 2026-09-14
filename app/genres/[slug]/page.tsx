@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, ViewTransition } from "react";
 import { Masthead } from "@/components/layout/Masthead";
 import { GENRES, GENRE_SLUG_TO_LABEL } from "@/lib/constants/genres";
 import { getEntriesByGenre } from "@/lib/queries/entries";
@@ -57,17 +57,26 @@ export default async function GenrePage({ params, searchParams }: PageProps) {
         <GridAnchor />
 
         <LazyReveal>
-          <Suspense
-            key={currentPage}
-            fallback={<EntryGridSkeleton className={styles.grid} />}
-          >
-            <EntryGrid
-              page={currentPage}
-              fetchPage={(limit, offset) => getEntriesByGenre(label, limit, offset)}
-              gridClassName={styles.grid}
-              basePath={`/genres/${slug}`}
-              empty={<p className={styles.empty}>此類型尚無文章。</p>}
-            />
+          <Suspense fallback={<EntryGridSkeleton className={styles.grid} />}>
+            {/* key 放在 ViewTransition 而不是 Suspense（Next.js view-transitions
+              guide 的 Step 4「同路由 crossfade」）：Suspense 不重新掛載，翻頁時
+              舊內容會留在畫面上直到新內容備妥，再由 view transition 淡出淡入。
+              骨架只在真正的冷載入（沒有舊內容可留）時出現。 */}
+            <ViewTransition
+              key={currentPage}
+              name="list-grid"
+              share="auto"
+              enter="auto"
+              default="none"
+            >
+              <EntryGrid
+                page={currentPage}
+                fetchPage={(limit, offset) => getEntriesByGenre(label, limit, offset)}
+                gridClassName={styles.grid}
+                basePath={`/genres/${slug}`}
+                empty={<p className={styles.empty}>此類型尚無文章。</p>}
+              />
+            </ViewTransition>
           </Suspense>
         </LazyReveal>
       </main>
