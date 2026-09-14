@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ARTICLE_BODY_ID } from "@/lib/dom-ids";
 import styles from "./ReadingProgress.module.css";
 
 export function ReadingProgress() {
@@ -8,7 +9,7 @@ export function ReadingProgress() {
 
   useEffect(() => {
     function update() {
-      const article = document.getElementById("main-content");
+      const article = document.getElementById(ARTICLE_BODY_ID);
       if (!article) return;
       const { top, height } = article.getBoundingClientRect();
       const vh = window.innerHeight;

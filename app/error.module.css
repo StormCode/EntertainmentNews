@@ -1,0 +1,95 @@
+/* 錯誤頁 — 沿用 DESIGN.md 的暗色紙張與金色重點，不用 Next.js 預設白底英文頁 */
+
+.wrap {
+  min-height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 24px;
+  background: var(--paper);
+}
+
+.inner {
+  max-width: 480px;
+  text-align: center;
+}
+
+.kicker {
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 20px;
+}
+
+.heading {
+  font-size: 32px;
+  font-weight: 900;
+  line-height: 1.4;
+  color: var(--ink-strong);
+  margin-bottom: 16px;
+}
+
+.body {
+  font-size: 16px;
+  line-height: 1.9;
+  color: var(--muted);
+  margin-bottom: 32px;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.retry,
+.home {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 24px;
+  border-radius: 999px;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.retry {
+  background: var(--gold);
+  color: var(--paper);
+  border: 1px solid var(--gold);
+  font-weight: 700;
+}
+
+.retry:hover {
+  background: transparent;
+  color: var(--gold);
+}
+
+.home {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line-strong);
+  text-decoration: none;
+}
+
+.home:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+.digest {
+  margin-top: 28px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--line-strong);
+}
+
+@media (max-width: 599px) {
+  .wrap { padding: 56px 20px; }
+  .heading { font-size: 26px; }
+}

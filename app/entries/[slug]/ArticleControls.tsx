@@ -1,36 +1,27 @@
 "use client";
 
-import { useEffect } from "react";
 import { useArticlePrefs } from "./useArticlePrefs";
+import { FONT_SIZES } from "@/lib/font-size";
 import styles from "./ArticleControls.module.css";
 
-const SIZES = [16, 18, 21] as const;
-type Size = (typeof SIZES)[number];
-
+/**
+ * 字級加減按鈕。
+ *
+ * 重構前這裡有一個 useEffect 直接 `document.getElementById("main-content")
+ * .style.setProperty("--article-font-size", ...)`：既是 hydration 後才執行
+ * （造成閃爍），又用字串 id 抓一個身兼三職的 DOM 節點。
+ * 現在字級由 <html data-font-size> + CSS 屬性選擇器接手，這裡只管 state。
+ */
 export function ArticleControls() {
   const { fontSize, setFontSize } = useArticlePrefs();
-
-  useEffect(() => {
-    const article = document.getElementById("main-content");
-    article?.style.setProperty("--article-font-size", `${fontSize}px`);
-  }, [fontSize]);
-
-  function smaller() {
-    const idx = SIZES.indexOf(fontSize);
-    if (idx > 0) setFontSize(SIZES[idx - 1] as Size);
-  }
-
-  function larger() {
-    const idx = SIZES.indexOf(fontSize);
-    if (idx < SIZES.length - 1) setFontSize(SIZES[idx + 1] as Size);
-  }
+  const idx = FONT_SIZES.indexOf(fontSize);
 
   return (
     <div className={styles.controls} aria-label="字級控制">
       <button
         className={styles.btn}
-        onClick={smaller}
-        disabled={fontSize === SIZES[0]}
+        onClick={() => setFontSize(FONT_SIZES[idx - 1])}
+        disabled={idx <= 0}
         aria-label="縮小字級"
         title="縮小字級"
       >
@@ -38,8 +29,8 @@ export function ArticleControls() {
       </button>
       <button
         className={styles.btn}
-        onClick={larger}
-        disabled={fontSize === SIZES[SIZES.length - 1]}
+        onClick={() => setFontSize(FONT_SIZES[idx + 1])}
+        disabled={idx >= FONT_SIZES.length - 1}
         aria-label="放大字級"
         title="放大字級"
       >

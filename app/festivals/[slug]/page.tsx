@@ -4,11 +4,13 @@ import { Suspense } from "react";
 import { Masthead } from "@/components/layout/Masthead";
 import { FESTIVALS, FESTIVAL_SLUG_TO_LABEL } from "@/lib/constants/festivals";
 import { getEntriesByChip } from "@/lib/queries/entries";
-import { GenreGridClient } from "@/components/genres/GenreGridClient";
+import { EntryGrid } from "@/components/entries/EntryGrid";
+import { ScrollToGrid } from "@/components/ui/ScrollToGrid";
+import { EntryCardSkeleton } from "@/components/skeleton";
 import { LazyReveal } from "@/components/ui/LazyReveal";
+import { ENTRY_PAGE_SIZE, parsePageParam } from "@/lib/pagination";
+import { MAIN_CONTENT_ID } from "@/lib/dom-ids";
 import styles from "./page.module.css";
-
-const PAGE_SIZE = 8;
 
 export function generateStaticParams() {
   return FESTIVALS.map(({ slug }) => ({ slug }));
@@ -32,28 +34,12 @@ export default async function FestivalPage({ params, searchParams }: PageProps) 
   if (!label) notFound();
 
   const { page: pageParam } = await searchParams;
-  const currentPage = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
-
-  type SerializedEntry = Omit<Awaited<ReturnType<typeof getEntriesByChip>>["items"][number], "publishedAt"> & { publishedAt: string | null };
-  let initialData: { items: SerializedEntry[]; hasNext: boolean } = { items: [], hasNext: false };
-
-  try {
-    const result = await getEntriesByChip("festival", label, PAGE_SIZE, (currentPage - 1) * PAGE_SIZE);
-    initialData = {
-      items: result.items.map((item) => ({
-        ...item,
-        publishedAt: item.publishedAt?.toISOString() ?? null,
-      })),
-      hasNext: result.hasNext,
-    };
-  } catch {
-    // DB unavailable
-  }
+  const currentPage = parsePageParam(pageParam);
 
   return (
     <>
       <Masthead />
-      <main className={styles.main}>
+      <main className={styles.main} id={MAIN_CONTENT_ID}>
         <div className={styles.pageHeader}>
           <Link href="/festivals" className={styles.back} aria-label="返回影展列表">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
@@ -62,21 +48,31 @@ export default async function FestivalPage({ params, searchParams }: PageProps) 
           </Link>
           <h1 className={styles.heading}>{label}</h1>
         </div>
-        {initialData.items.length === 0 ? (
-          <p className={styles.empty}>此影展尚無文章。</p>
-        ) : (
-          <LazyReveal>
-            <Suspense fallback={<div className={styles.grid} />}>
-              <GenreGridClient
-                initialData={initialData}
-                initialPage={currentPage}
-                slug={slug}
-                apiBase="/api/festivals"
-                basePath="/festivals"
-              />
-            </Suspense>
-          </LazyReveal>
-        )}
+
+        <Suspense fallback={null}>
+          <ScrollToGrid />
+        </Suspense>
+
+        <LazyReveal>
+          <Suspense
+            key={currentPage}
+            fallback={
+              <div className={styles.grid}>
+                {[...Array(ENTRY_PAGE_SIZE)].map((_, i) => (
+                  <EntryCardSkeleton key={i} />
+                ))}
+              </div>
+            }
+          >
+            <EntryGrid
+              page={currentPage}
+              fetchPage={(limit, offset) => getEntriesByChip("festival", label, limit, offset)}
+              gridClassName={styles.grid}
+              basePath={`/festivals/${slug}`}
+              empty={<p className={styles.empty}>此影展尚無文章。</p>}
+            />
+          </Suspense>
+        </LazyReveal>
       </main>
     </>
   );

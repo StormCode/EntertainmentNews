@@ -34,6 +34,22 @@
   --font-sans-tc: '';
 }
 
+/* 文章字級 — 由 layout.tsx 的 pre-paint inline script 寫入 <html data-font-size>。
+ * 用屬性選擇器而非 JS 寫 element.style，確保第一次繪製就是正確字級。
+ * 白名單與預設值的真相來源在 lib/font-size.ts，改動時兩邊要一起改。
+ */
+:root[data-font-size="16"] { --article-font-size: 16px; }
+:root[data-font-size="18"] { --article-font-size: 18px; }
+:root[data-font-size="21"] { --article-font-size: 21px; }
+
+@media (max-width: 599px) {
+  /* 行動版整體縮 1px（原本的設計意圖）。重構前這是 page.module.css 裡寫死的
+   * 17px fallback，跟 hook 的 18px 預設打架，造成每篇文章 17→18 的重排。 */
+  :root[data-font-size="16"] { --article-font-size: 15px; }
+  :root[data-font-size="18"] { --article-font-size: 17px; }
+  :root[data-font-size="21"] { --article-font-size: 20px; }
+}
+
 /* Reset & base */
 *, *::before, *::after {
   box-sizing: border-box;

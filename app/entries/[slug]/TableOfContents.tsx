@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ARTICLE_BODY_ID } from "@/lib/dom-ids";
 import type { HeadingItem } from "@/lib/markdown/render";
 import styles from "./TableOfContents.module.css";
 
@@ -16,7 +17,7 @@ export function TableOfContents({ headings }: Props) {
   useEffect(() => {
     if (headings.length === 0) return;
 
-    const article = document.getElementById("main-content");
+    const article = document.getElementById(ARTICLE_BODY_ID);
     const headingEls: HTMLElement[] = article
       ? Array.from(article.querySelectorAll("h2[id], h3[id]"))
       : [];

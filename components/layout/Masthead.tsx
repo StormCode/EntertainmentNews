@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MobileNav } from "./MobileNav";
 import { NavLinks } from "./NavLinks";
+import { MAIN_CONTENT_ID } from "@/lib/dom-ids";
 import styles from "./Masthead.module.css";
 
 export function Masthead() {
@@ -10,7 +11,7 @@ export function Masthead() {
 
   return (
     <header className={styles.masthead} style={{ position: "relative" }}>
-      <a href="#main-content" className={styles.skipLink}>跳到主要內容</a>
+      <a href={`#${MAIN_CONTENT_ID}`} className={styles.skipLink}>跳到主要內容</a>
       <div className={styles.inner}>
         <div className={`${styles.topBar} ui date`}>
           vol.{vol} · {now.toLocaleDateString("zh-TW", { year: "numeric", month: "long", day: "numeric" })} · est. 2026

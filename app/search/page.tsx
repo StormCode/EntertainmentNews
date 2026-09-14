@@ -1,6 +1,7 @@
 import { Masthead } from "@/components/layout/Masthead";
 import { EntryCard } from "@/components/entries/EntryCard";
 import { searchEntries, type EntryWithFilm } from "@/lib/queries/entries";
+import { MAIN_CONTENT_ID } from "@/lib/dom-ids";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +30,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   return (
     <>
       <Masthead />
-      <main className={styles.main} id="main-content">
+      <main className={styles.main} id={MAIN_CONTENT_ID}>
         <form action="/search" method="GET" className={styles.form} role="search">
           <div className={styles.inputWrap}>
             <svg className={styles.searchIcon} width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">

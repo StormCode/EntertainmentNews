@@ -11,6 +11,7 @@ import { ReadingProgress } from "./ReadingProgress";
 import { TableOfContents } from "./TableOfContents";
 import { ArticleControls } from "./ArticleControls";
 import { BackToTop } from "./BackToTop";
+import { ARTICLE_BODY_ID, MAIN_CONTENT_ID } from "@/lib/dom-ids";
 import styles from "./page.module.css";
 
 export const revalidate = 14400;
@@ -136,18 +137,21 @@ export default async function EntryPage({ params }: PageProps) {
         <hr className={styles.rule} />
       </header>
 
-      <div className={styles.contentGrid}>
+      {/* 文章頁在重構前沒有 <main> landmark；skip link 指向 <article> 本身，
+          等於讓一個 id 同時代表「主要內容區」與「文章內文」。現在拆開：
+          <main> 是 skip link 的目標，<article> 是進度條與目錄的量測對象。 */}
+      <main id={MAIN_CONTENT_ID} className={styles.contentGrid}>
         <aside className={styles.tocSidebar}>
           <TableOfContents headings={headings} />
         </aside>
         {/* Article body — 800px column; grid handles centering on wide viewports */}
         <article
-          id="main-content"
+          id={ARTICLE_BODY_ID}
           className={styles.body}
           dangerouslySetInnerHTML={{ __html: bodyHtml }}
           aria-label={`${filmTitle} 文章內文`}
         />
-      </div>
+      </main>
 
       {relatedEntries.length > 0 && (
         <LazyReveal>

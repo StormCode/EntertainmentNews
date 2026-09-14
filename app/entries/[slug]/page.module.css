@@ -364,7 +364,8 @@
   .entryTitle { font-size: 15px; }
   .body {
     padding: 24px 20px 60px;
-    font-size: var(--article-font-size, 17px);
+    /* 字級交給 globals.css 的 [data-font-size] 屬性選擇器；
+     * 這裡不再寫死 fallback，那正是 17→18 重排的來源。 */
   }
   .related { padding: 0 20px 56px; }
 

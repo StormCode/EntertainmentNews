@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Serif_TC, Noto_Sans_TC } from "next/font/google";
 import { Footer } from "@/components/layout/Footer";
+import { DEFAULT_FONT_SIZE, FONT_SIZE_INIT_SCRIPT } from "@/lib/font-size";
 import "./globals.css";
 
 // CJK fonts: no `subsets` — next/font types don't expose chinese-traditional
@@ -57,7 +58,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-Hant" className={`${serifTC.variable} ${sansTC.variable}`} suppressHydrationWarning>
+    <html
+      lang="zh-Hant"
+      data-font-size={DEFAULT_FONT_SIZE}
+      className={`${serifTC.variable} ${sansTC.variable}`}
+      suppressHydrationWarning
+    >
+      <head>
+        {/*
+          在首次繪製前把讀者存的字級寫上 <html>，避免 hydration 後才修正造成
+          全文重排。<html> 的 suppressHydrationWarning 讓 React 接受這個由
+          script 改過的 DOM 而不是丟棄它。詳見 lib/font-size.ts。
+        */}
+        <script dangerouslySetInnerHTML={{ __html: FONT_SIZE_INIT_SCRIPT }} />
+      </head>
       <body suppressHydrationWarning>
         {children}
         <Footer />
