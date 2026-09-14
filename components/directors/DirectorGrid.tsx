@@ -4,7 +4,6 @@ import Image from "next/image";
 import { User } from "lucide-react";
 import { Pagination } from "@/components/ui/Pagination";
 import { DIRECTOR_PAGE_SIZE, offsetFor } from "@/lib/pagination";
-import { GRID_ANCHOR_ID } from "@/lib/dom-ids";
 import { getDirectorsPaged } from "@/lib/queries/directors";
 import styles from "@/app/directors/page.module.css";
 
@@ -28,7 +27,7 @@ export async function DirectorGrid({ page, empty }: Props) {
 
   return (
     <>
-      <ul id={GRID_ANCHOR_ID} className={styles.grid} role="list">
+      <ul className={styles.grid} role="list">
         {items.map((d) => (
           <li key={d.slug}>
             <Link href={`/directors/${d.slug}`} className={styles.card}>

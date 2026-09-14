@@ -6,9 +6,10 @@ import { GENRES, GENRE_SLUG_TO_LABEL } from "@/lib/constants/genres";
 import { getEntriesByGenre } from "@/lib/queries/entries";
 import { EntryGrid } from "@/components/entries/EntryGrid";
 import { ScrollToGrid } from "@/components/ui/ScrollToGrid";
-import { EntryCardSkeleton } from "@/components/skeleton";
+import { GridAnchor } from "@/components/ui/GridAnchor";
+import { EntryGridSkeleton } from "@/components/skeleton";
 import { LazyReveal } from "@/components/ui/LazyReveal";
-import { ENTRY_PAGE_SIZE, parsePageParam } from "@/lib/pagination";
+import { parsePageParam } from "@/lib/pagination";
 import { MAIN_CONTENT_ID } from "@/lib/dom-ids";
 import styles from "./page.module.css";
 
@@ -53,16 +54,12 @@ export default async function GenrePage({ params, searchParams }: PageProps) {
           <ScrollToGrid />
         </Suspense>
 
+        <GridAnchor />
+
         <LazyReveal>
           <Suspense
             key={currentPage}
-            fallback={
-              <div className={styles.grid}>
-                {[...Array(ENTRY_PAGE_SIZE)].map((_, i) => (
-                  <EntryCardSkeleton key={i} />
-                ))}
-              </div>
-            }
+            fallback={<EntryGridSkeleton className={styles.grid} />}
           >
             <EntryGrid
               page={currentPage}

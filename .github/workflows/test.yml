@@ -1,0 +1,75 @@
+name: Test
+
+# 專案的第一個 on:push workflow —— 其餘三個都是排程型（備份、還原測試、導演照片）。
+# 2026-09-15 工程審查 D9：測試範圍定為 vitest + Playwright 全覆蓋，就必須進 CI，
+# 否則「忘了跑」等於沒有測試。
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: 單元測試 + 型別
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bunx tsc --noEmit
+
+      - name: Unit tests
+        run: bun run test
+
+  e2e:
+    name: E2E（桌機 + 行動版）
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # 需要真實資料庫：頁面直接查 Neon，沒有 mock 層。
+    # fork 的 PR 拿不到 secrets，跳過而不是紅燈。
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # 只裝 chromium。行動版 project 用 Chromium 跑 iPhone 的視窗尺寸，
+      # 驗的是 599px 斷點下的字級，不是 WebKit 專屬行為。
+      - name: Install Playwright browser
+        run: bunx playwright install --with-deps chromium
+
+      - name: Run E2E
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DIRECT }}
+          NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3311
+        run: bun run test:e2e
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

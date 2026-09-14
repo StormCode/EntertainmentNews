@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { EntryCard } from "./EntryCard";
 import { Pagination } from "@/components/ui/Pagination";
 import { ENTRY_PAGE_SIZE, offsetFor } from "@/lib/pagination";
-import { GRID_ANCHOR_ID } from "@/lib/dom-ids";
 import type { EntryWithFilm } from "@/lib/queries/entries";
 
 /**
@@ -58,7 +57,7 @@ export async function EntryGrid({
 
   return (
     <>
-      <div id={GRID_ANCHOR_ID} className={gridClassName}>
+      <div className={gridClassName}>
         {items.map((entry) => (
           <EntryCard key={entry.id} entry={entry} />
         ))}

@@ -5,12 +5,13 @@ import { unstable_cache } from "next/cache";
 import { Masthead } from "@/components/layout/Masthead";
 import { GenreGrid } from "@/components/genres/GenreGrid";
 import { HeroCarousel } from "@/components/hero/HeroCarousel";
-import { HeroSkeleton, EntryCardSkeleton } from "@/components/skeleton";
+import { HeroSkeleton, EntryGridSkeleton } from "@/components/skeleton";
 import { getPublishedEntries, getHeroEntries, type EntryWithFilm } from "@/lib/queries/entries";
 import { EntryGrid } from "@/components/entries/EntryGrid";
 import { ScrollToGrid } from "@/components/ui/ScrollToGrid";
+import { GridAnchor } from "@/components/ui/GridAnchor";
 import { LazyReveal } from "@/components/ui/LazyReveal";
-import { ENTRY_PAGE_SIZE, parsePageParam } from "@/lib/pagination";
+import { parsePageParam } from "@/lib/pagination";
 import { MAIN_CONTENT_ID } from "@/lib/dom-ids";
 import styles from "./page.module.css";
 
@@ -74,17 +75,13 @@ export default async function HomePage({ searchParams }: PageProps) {
           <ScrollToGrid />
         </Suspense>
 
+        <GridAnchor />
+
         <LazyReveal>
           {/* key={currentPage} 讓每次翻頁重新觸發邊界，骨架才會顯示 */}
           <Suspense
             key={currentPage}
-            fallback={
-              <div className={styles.entryGrid}>
-                {[...Array(ENTRY_PAGE_SIZE)].map((_, i) => (
-                  <EntryCardSkeleton key={i} />
-                ))}
-              </div>
-            }
+            fallback={<EntryGridSkeleton className={styles.entryGrid} />}
           >
             <EntryGrid
               page={currentPage}

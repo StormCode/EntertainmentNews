@@ -3,6 +3,8 @@ import { Suspense } from "react";
 import { Masthead } from "@/components/layout/Masthead";
 import { DirectorGrid } from "@/components/directors/DirectorGrid";
 import { ScrollToGrid } from "@/components/ui/ScrollToGrid";
+import { GridAnchor } from "@/components/ui/GridAnchor";
+import { DirectorGridSkeleton } from "@/components/skeleton";
 import { parsePageParam } from "@/lib/pagination";
 import { MAIN_CONTENT_ID } from "@/lib/dom-ids";
 import styles from "./page.module.css";
@@ -36,9 +38,11 @@ export default async function DirectorsPage({ searchParams }: PageProps) {
           <ScrollToGrid />
         </Suspense>
 
+        <GridAnchor />
+
         <Suspense
           key={currentPage}
-          fallback={<ul className={styles.grid} role="list" aria-hidden="true" />}
+          fallback={<DirectorGridSkeleton className={styles.grid} />}
         >
           <DirectorGrid
             page={currentPage}
