@@ -46,13 +46,14 @@ Deferred from plan reviews. Each item has enough context to be picked up cold.
 **Depends on:** 文章閱讀 UX 增強 PR 已合入（rehype-slug 就位）。
 **Target:** v0.1
 
-### TODO-E5: 測試基礎設施（vitest）
-**What:** 引入 vitest，為純函數寫第一批 unit tests。目前範圍：`wordCount()`（lib/markdown/render.ts）+ TMDB poster picker server logic（`fetchTmdbPosters`、`updateFilmPoster`）。
-**Why:** wordCount() regex 曾有 bug（CJK 計算錯誤）；fetchTmdbPosters / updateFilmPoster 是純 server function，有明確輸入輸出規格，測試後可防止 cache revalidation 等 regression。
-**Pros:** 建立測試文化基礎；兩個起點（wordCount + poster actions）都是零副作用純函數，設定成本最低。
-**Cons:** 需設定 vitest config；Next.js app router server component 測試較複雜，此 TODO 只針對純函數與 server actions（mock DB）。
-**Context:** 起點一：`lib/markdown/render.ts:wordCount()`；起點二：`lib/tmdb.ts:fetchTmdbPosters()`（mock fetch，測 sort/slice 邏輯）、`app/admin/entries/[slug]/edit/actions.ts:updateFilmPoster()`（mock db + uploadFilmImages，測 fallback 邏輯與 revalidate call）。
-**Target:** v0.1
+### ~~TODO-E5: 測試基礎設施（vitest）~~ ✓ DONE (2026-09-15)
+已交付且超出原範圍：vitest（41 個單元測試）+ Playwright（38 個 E2E，桌機與行動版各 19）
++ `.github/workflows/test.yml`（專案第一個 on:push workflow）。
+檔案：`vitest.config.mts`、`playwright.config.mts`、`lib/pagination.test.ts`、
+`lib/font-size.test.ts`、`lib/markdown/render.test.ts`、`e2e/{pagination,font-size,a11y,error-boundary}.spec.ts`。
+指令：`bun run test`、`bun run test:e2e`。
+註：原 TODO 提到的 `wordCount()` CJK bug 在 2026-09-15 查證時已修復，測試改為釘住正確行為。
+poster picker 的 server logic 測試未納入（那批程式碼本次沒動），若要補可另開 TODO。
 
 ---
 
