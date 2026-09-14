@@ -84,9 +84,10 @@ components/entries/EntryGridClient.tsx:31
 | D5 | 錯誤處理 | **加 `app/error.tsx`，例外往上拋** | 「網站壞了」不該長得像「網站沒文章」 |
 | D6 | 字級閃爍 | **inline script + `<html data-font-size>` + CSS 屬性選擇器** | Next.js 官方 preventing-flash 作法 [Layer 1] |
 | D8 | DOM 耦合 | **拆成 `#main-content`（skip link）與 `#article-body`（兩個元件）** | 一個 id 承載兩種語意是根本原因 |
-| D7 | PAGE_SIZE | **抽成 `lib/constants/pagination.ts` 兩個具名常數** | ENTRY_PAGE_SIZE=8 / DIRECTOR_PAGE_SIZE=20 |
+| D7 | PAGE_SIZE | **抽成 `lib/pagination.ts`：兩個具名常數 + `parsePageParam()`** | ENTRY_PAGE_SIZE=8 / DIRECTOR_PAGE_SIZE=20；解析邏輯抽出後才可單元測試 |
+| D9 | 測試範圍 | **vitest + Playwright 全覆蓋（42 條路徑）** | 使用者選擇完整版；9 條視覺類 E2E 進 CI |
 
-**未決：D9（測試範圍）** — 見下方「未解決決策」。
+全部 7 項決議已拍板，無未決事項。
 
 ---
 
@@ -117,7 +118,6 @@ components/entries/EntryGridClient.tsx:31
 | `NewDot` 的同類 hydration 閃爍 | 同一個修法可套用，但不在 S1-S4 範圍。→ TODO-E6 |
 | `BackToTop` / `TableOfContents` 的 reduced-motion | 兩處 `behavior:"smooth"` 無視使用者偏好，但不在本次動到的檔案。→ TODO-E7 |
 | `wordCount()` CJK 計數 bug | 已有學習紀錄（confidence 7/10），屬 TODO-E5 測試工作的一部分 |
-| Playwright / CI E2E | D9 未決。若選 vitest-only 則明確排除 |
 | `?page=` 超出範圍的文案 | 現存 bug，不是本次引入。→ TODO-E8（但 D3 的改動會經過這段程式碼，可順手修） |
 | `app/page.tsx` 的 `export const dynamic = "force-dynamic"` | 讀 `searchParams` 本來就強制動態，這行是冗餘的。移除的收益極小，不值得進這個 diff |
 
@@ -218,11 +218,12 @@ Legend：★★★ 行為+邊界+錯誤路徑 ｜ ★★ 快樂路徑 ｜ ★ �
 
 Synthesized from this review's findings. Each task derives from a specific finding above.
 
-- [ ] **T1 (P1, human: ~20分 / CC: ~3分)** — constants — 抽出 `lib/constants/pagination.ts`
-  - Surfaced by: 議題 5 (D7) — PAGE_SIZE 定義 8 處，值不一致（8 / 20）
-  - Files: `lib/constants/pagination.ts`（新）、`app/page.tsx:14`、`app/genres/[slug]/page.tsx:11`、`app/festivals/[slug]/page.tsx:11`、`app/directors/page.tsx:12`
-  - Verify: `grep -rn "PAGE_SIZE" app/` 只剩 import
-  - Note: **先做這個**（Beck: make the change easy, then make the easy change）
+- [ ] **T1 (P1, human: ~40分 / CC: ~5分)** — constants — 抽出 `lib/pagination.ts`（常數 + `parsePageParam()`）
+  - Surfaced by: 議題 5 (D7) — PAGE_SIZE 定義 8 處，值不一致（8 / 20）；D9 選全覆蓋後，四份重複的 searchParams 解析也必須抽成純函式才測得到
+  - Files: `lib/pagination.ts`（新）、`app/page.tsx:14,53`、`app/genres/[slug]/page.tsx:11,35`、`app/festivals/[slug]/page.tsx:11`、`app/directors/page.tsx:12,20`
+  - 匯出：`ENTRY_PAGE_SIZE = 8`、`DIRECTOR_PAGE_SIZE = 20`、`parsePageParam(raw?: string): number`、`offsetFor(page, size): number`
+  - Verify: `grep -rn "PAGE_SIZE\|parseInt(pageParam" app/` 只剩 import
+  - Note: **先做這個**（Beck: make the change easy, then make the easy change）。`parsePageParam` 是 T8 第一批單元測試的目標之一
 
 - [ ] **T2 (P1, human: ~3h / CC: ~12分)** — pagination — 新增 `EntryGrid` async server component，包進 `<Suspense key={page}>`
   - Surfaced by: 議題 1 (D3) — `app/page.tsx:59-64` 在 JSX 前就 await，:80 的 Suspense fallback 是死碼
@@ -259,11 +260,32 @@ Synthesized from this review's findings. Each task derives from a specific findi
   - Verify: 三個頁面的 skip link 行為不變；文章頁進度條與目錄高亮正常
   - Note: T6 已移除 `ArticleControls.tsx:14` 的第三個呼叫點
 
-- [ ] **T8 (P3, 待 D9 決定)** — test — 建立測試基礎設施
-  - Surfaced by: 第 3 節 — 42 條路徑 0% 覆蓋，3 條 CRITICAL 靜默失效
-  - Files: 待定（`vitest.config.ts` + `lib/**/*.test.ts`）
-  - Verify: `bun run test` 通過
-  - Note: **D9 未決**。建議範圍：`parseStoredSize`、searchParams 解析、分頁邊界、`wordCount()` CJK（TODO-E5）
+- [ ] **T8 (P2, human: ~1天 / CC: ~25分)** — test-unit — 裝 vitest，覆蓋 29 條 code path
+  - Surfaced by: 第 3 節 (D9) — 42 條路徑 0% 覆蓋；CRITICAL GAP #2 只有測試擋得住
+  - Files: `vitest.config.ts`（新）、`package.json`（`scripts.test`）、`lib/pagination.test.ts`（新）、`lib/markdown/render.test.ts`（新）、`app/entries/[slug]/font-size.test.ts`（新）
+  - 覆蓋：`parsePageParam()` 6 分支（缺席／"3"／"abc"／"-5"／"0"／超出範圍）、`parseStoredSize()` 3 分支（合法／非法／null／前後空白）、`wordCount()` CJK 計數（TODO-E5，已知 bug）、`offsetFor()` 邊界
+  - Verify: `bun run test` 全綠
+  - Note: 🔴 **`parseStoredSize` 的測試同時是 CRITICAL GAP #2 的守門員** — inline script 與 lazy `useState` 必須 import 同一份實作，測試要斷言兩個呼叫點吃到同一個函式
+
+- [ ] **T9 (P2, human: ~1.5天 / CC: ~30分)** — test-e2e — 裝 Playwright，覆蓋 13 條 user flow
+  - Surfaced by: 第 3 節 (D9) — 9 條 [→E2E] 路徑（零閃爍、翻頁流程、error boundary）
+  - Files: `playwright.config.ts`（新）、`e2e/pagination.spec.ts`（新）、`e2e/font-size.spec.ts`（新）、`e2e/error-boundary.spec.ts`（新）、`e2e/a11y.spec.ts`（新）
+  - `playwright.config.ts` 用 `webServer: { command: "bun run build && bun run start" }`，測 production build 而非 dev（dev 的 hydration 時序與 production 不同，零閃爍測試在 dev 下不可信）
+  - **零閃爍測試怎麼寫**（這是最難的一條，三重斷言缺一不可）：
+    1. `page.addInitScript(() => localStorage.setItem("article-font-size","16"))` 先種偏好
+    2. `page.goto(url, { waitUntil: "commit" })` 後**立刻** evaluate `document.documentElement.dataset.fontSize`，必須已是 `"16"` — 證明 inline script 跑在 hydration 之前
+    3. 掛 `PerformanceObserver` 收 `layout-shift` entries，斷言文章內文區的 CLS 貢獻為 **0**
+    4. 斷言 console 沒有 React hydration 警告（`Hydration failed` / `did not match`）— 一旦有，React 會丟棄 inline script 的修正，前三項全部白做
+  - 翻頁測試需斷言：點「下一頁」期間 **零** `/api/` 請求（`page.on("request")` 過濾），這是議題 1 的回歸守門員
+  - Verify: `bun run test:e2e` 全綠
+  - Note: 行動版零閃爍用 `devices["iPhone 15"]` 跑同一組斷言，守住 17→18 那個 bug
+
+- [ ] **T10 (P2, human: ~2h / CC: ~10分)** — ci — 新增測試 workflow
+  - Surfaced by: 第 3 節 (D9) — 選了全覆蓋就必須進 CI，否則忘了跑等於沒有
+  - Files: `.github/workflows/test.yml`（新）
+  - 兩個 job：`unit`（bun + `bun run test`）與 `e2e`（`playwright install --with-deps chromium` + `bun run test:e2e`）。E2E 需要 `DATABASE_URL` secret 或 seed 一個測試 DB
+  - Verify: push 後 GitHub Actions 兩個 job 皆綠
+  - Note: 現有三個 workflow 都是排程型（備份／還原／導演照片），這是第一個 `on: [push, pull_request]` 的 workflow
 
 ---
 
@@ -278,13 +300,22 @@ Synthesized from this review's findings. Each task derives from a specific findi
 | T5 error.tsx | `app/` | T2（同樣改那幾個 page.tsx） |
 | T6 字級 | `app/layout.tsx`, `app/entries/[slug]/` | — |
 | T7 id 拆分 | `app/entries/[slug]/` | T6 |
+| T8 vitest | `vitest.config.ts`, `lib/`, `package.json` | T1（測 `parsePageParam`）、T6（測 `parseStoredSize`） |
+| T9 Playwright | `playwright.config.ts`, `e2e/`, `package.json` | T2-T7 全部（E2E 測的是最終行為） |
+| T10 CI | `.github/workflows/` | T8, T9 |
 
 **Lane A（分頁線）：** T1 → T2 → T3 → T4 → T5（循序，全部共用 `app/*/page.tsx`）
 **Lane B（文章頁線）：** T6 → T7（循序，共用 `app/entries/[slug]/`）
+**Lane C（測試線）：** T8 → T9 → T10（循序）
 
-**執行順序：** Lane A 與 Lane B 可平行開在兩個 worktree。兩者唯一的交集是 `app/layout.tsx`（只有 Lane B 動）與 `app/globals.css`（只有 Lane B 動），**無衝突**。合併後再做 T8。
+**執行順序：**
+1. Lane A 與 Lane B 平行開在兩個 worktree。兩者唯一交集是 `app/layout.tsx` 與 `app/globals.css`，**皆只有 Lane B 動**，無衝突
+2. 合併 A + B
+3. 跑 Lane C
 
-**衝突旗標：** 無。兩條 lane 的檔案集合不相交。
+**衝突旗標：** ⚠️ T8 與 T9 都改 `package.json`（`scripts` 與 `devDependencies`）。Lane C 內部循序即可避開；不要把 T8/T9 再拆成平行 worktree。
+
+**為什麼 Lane C 不能與 A/B 平行：** T8 測的 `parsePageParam` 要等 T1 抽出來才存在；T9 的 E2E 斷言「翻頁期間零 `/api/` 請求」要等 T4 刪完 route 才會過。先寫測試會得到一批注定紅燈的檔案，不是 TDD，是噪音。
 
 ---
 
@@ -302,7 +333,6 @@ Note: 2026-06-13 / 06-19 / 06-30 的既有審查紀錄皆超過 7 天，不列�
 
 **OUTSIDE VOICE:** 未執行。Codex CLI 未安裝（`codex_reviews` 設定為 enabled，但 `command -v codex` 找不到），且使用者於 D10 選擇先存檔 commit，未走 Claude subagent 備援路徑。下次可執行 `npm install -g @openai/codex` 後重跑，或在實作前單獨跑 `/codex consult`。
 
-**VERDICT:** ENG REVIEW 完成，6 項架構決議已鎖定並可實作。狀態為 ISSUES_OPEN 而非 CLEAR，原因是測試範圍（D9）尚未決定且有 3 個 CRITICAL 靜默失效缺口。實作 T1-T7 不受阻擋；T8 待 D9 拍板。
+**VERDICT:** ENG REVIEW CLEARED — 7 項決議全部拍板，10 個實作任務（T1-T10）可直接執行。3 個 CRITICAL 靜默失效缺口在 D9 選擇 vitest + Playwright 全覆蓋後皆有對應測試守門員：GAP #1 → T8 `parsePageParam` 邊界測試；GAP #2 → T8 `parseStoredSize` 共用斷言 + T9 hydration 警告斷言；GAP #3 → T9 閱讀進度條 E2E。
 
-**UNRESOLVED DECISIONS:**
-- D9（測試範圍）未決：專案目前 42 條程式路徑 0% 覆蓋。選項為 (A) vitest + Playwright 全覆蓋、(B) 只裝 vitest 做純函式並把 9 條視覺類路徑交給 gstack `/qa`（審查建議）、(C) 只寫進 TODOS.md、(D) 完全跳過。CRITICAL GAP #2（inline script 與 lazy useState 的 `parseStoredSize` 必須共用）只有測試擋得住，建議至少採 (B)。
+NO UNRESOLVED DECISIONS
