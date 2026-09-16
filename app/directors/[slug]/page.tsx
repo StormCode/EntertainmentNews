@@ -30,7 +30,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const name = await resolveDirectorSlug(slug).catch(() => null);
   if (!name) return {};
-  return { title: `${name} — 散場之後` };
+  // 裸標題即可，後綴由 app/layout.tsx 的 title.template 補上
+  return { title: name };
 }
 
 type FilmItem = {

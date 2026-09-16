@@ -21,7 +21,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const label = GENRE_SLUG_TO_LABEL[slug as keyof typeof GENRE_SLUG_TO_LABEL];
   if (!label) return {};
-  return { title: `${label} — 散場之後` };
+  // 裸標題即可，後綴由 app/layout.tsx 的 title.template 補上
+  return { title: label };
 }
 
 interface PageProps {

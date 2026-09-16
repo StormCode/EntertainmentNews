@@ -11,7 +11,8 @@ interface SearchPageProps {
 }
 
 export function generateMetadata() {
-  return { title: "搜尋 — 散場之後" };
+  // 裸標題即可，後綴由 app/layout.tsx 的 title.template 補上
+  return { title: "搜尋" };
 }
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {

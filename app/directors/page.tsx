@@ -10,8 +10,10 @@ import { getDirectorsPaged } from "@/lib/queries/directors";
 import { MAIN_CONTENT_ID } from "@/lib/dom-ids";
 import styles from "./page.module.css";
 
+// 只給裸標題 —— app/layout.tsx 的 template "%s — 散場之後" 會補後綴。
+// 自己再寫一次會變成「導演 — 散場之後 — 散場之後」。
 export const metadata = {
-  title: "導演 — 散場之後",
+  title: "導演",
 };
 
 interface PageProps {
